@@ -104,6 +104,15 @@ const obsidianTheme: Theme = {
   },
 }
 
+// --- Agent display name mapping ---
+const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  main: 'Bella',
+}
+
+function getAgentDisplayName(name: string): string {
+  return AGENT_DISPLAY_NAMES[name] || name
+}
+
 // --- Component ---
 
 export function MemoryGraph() {
@@ -167,7 +176,7 @@ export function MemoryGraph() {
 
         nodes.push({
           id: `hub-${agent.name}`,
-          label: agent.name,
+          label: getAgentDisplayName(agent.name),
           fill: color,
           size: hubSize,
         })
@@ -205,7 +214,7 @@ export function MemoryGraph() {
 
       nodes.push({
         id: `hub-${agent.name}`,
-        label: agent.name,
+        label: getAgentDisplayName(agent.name),
         fill: color,
         size: hubSize,
       })
@@ -314,7 +323,7 @@ export function MemoryGraph() {
       const name = node.id.replace('hub-', '')
       const agent = agents.find(a => a.name === name)
       if (agent) {
-        setHoveredNode({ label: agent.name, sub: `${agent.totalChunks} chunks / ${agent.totalFiles} files / ${formatBytes(agent.dbSize)}` })
+        setHoveredNode({ label: getAgentDisplayName(agent.name), sub: `${agent.totalChunks} chunks / ${agent.totalFiles} files / ${formatBytes(agent.dbSize)}` })
       }
     }
   }, [agents])
@@ -409,7 +418,7 @@ export function MemoryGraph() {
           <>
             <span className="text-[#45475a] text-[10px]">/</span>
             <span className="px-2.5 py-1 text-[11px] font-mono rounded-md bg-[#cba6f7]/15 text-[#cba6f7] border border-[#cba6f7]/25">
-              {activeAgent.name}
+              {getAgentDisplayName(activeAgent.name)}
             </span>
           </>
         )}

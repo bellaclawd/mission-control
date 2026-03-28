@@ -423,6 +423,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(data, { status: res.ok ? 200 : res.status })
       }
 
+      case 'discord-channels': {
+        // Fetch channel names from Discord API using per-account bot tokens
+        const guildId = readString(body.guildId)
+        const accountTokens = body.accountTokens as Record<string, string> | undefined
+        if (!guildId || !accountTokens) {
+          return NextResponse.json({ error: 'guildId and accountTokens required' }, { status: 400 })
+        }
+
+        const results: Record<string, Record<string, string>> = {}
+        for (const [accountId, token] of Object.entries(accountTokens)) {
+          try {
+            const res = await fetch(`https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/channels`, {
+              headers: { Authorization: `Bot ${token}` },
+            })
+            if (!res.ok) continue
+            const channels = await res.json() as Array<{ id: string; name: string; type: number }>
+            if (!Array.isArray(channels)) continue
+            results[accountId] = Object.fromEntries(
+              channels
+                .filter(c => c.type === 0 || c.type === 5 || c.type === 15 || c.type === 16) // text-like channels
+                .map(c => [c.id, c.name])
+            )
+          } catch {
+            // skip this account
+          }
+        }
+        return NextResponse.json({ ok: true, channels: results })
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
     }

@@ -76,7 +76,7 @@ interface LaunchToast {
 }
 
 type OfficeAction = 'focus' | 'pair' | 'break'
-type TimeTheme = 'dawn' | 'day' | 'dusk' | 'night'
+type TimeTheme = 'dawn' | 'day' | 'dusk' | 'night' | 'viridian'
 
 type HotspotKind = 'room' | 'desk'
 
@@ -876,6 +876,10 @@ export function OfficePanel() {
   ])
 
   useEffect(() => {
+    // Only auto-set from clock if the user hasn't manually picked a theme in prefs
+    const savedPrefs = (() => { try { const raw = window.localStorage.getItem(officePrefsKey); return raw ? JSON.parse(raw) : null } catch { return null } })()
+    if (savedPrefs?.timeTheme) return // user has a saved preference — don't override
+
     const updateThemeFromClock = () => {
       const hour = new Date().getHours()
       if (hour >= 6 && hour < 11) setTimeTheme('dawn')
@@ -886,7 +890,7 @@ export function OfficePanel() {
     updateThemeFromClock()
     const interval = setInterval(updateThemeFromClock, 60_000)
     return () => clearInterval(interval)
-  }, [])
+  }, [officePrefsKey])
 
   const themePalette = useMemo<ThemePalette>(() => {
     if (timeTheme === 'dawn') {
@@ -941,6 +945,24 @@ export function OfficePanel() {
         floorOpacityA: 0.65,
         floorOpacityB: 0.5,
         accentGlow: 'rgba(167,139,250,0.14)',
+      }
+    }
+    if (timeTheme === 'viridian') {
+      return {
+        shell: 'none',
+        gridLine: 'rgba(80,160,48,0.3)',
+        haze: 'none',
+        glow: 'none',
+        corridor: '#D8B870',
+        corridorStripe: '#C8A860',
+        atmosphere: 'none',
+        shadowVeil: 'none',
+        floorFilter: 'none',
+        spriteFilter: 'none',
+        roomTone: 'none',
+        floorOpacityA: 1.0,
+        floorOpacityB: 0.9,
+        accentGlow: 'rgba(80,160,48,0.3)',
       }
     }
     return {
@@ -1662,9 +1684,12 @@ export function OfficePanel() {
             ref={mapViewportRef}
             className="relative rounded-lg border border-border overflow-hidden min-h-[560px] cursor-grab active:cursor-grabbing shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
             style={{
-              backgroundColor: 'hsl(var(--background))',
-              backgroundImage: `${themePalette.shell}, linear-gradient(90deg, ${themePalette.gridLine} 1px, transparent 1px), linear-gradient(${themePalette.gridLine} 1px, transparent 1px)`,
-              backgroundSize: 'auto, 64px 64px, 64px 64px',
+              backgroundColor: timeTheme === 'viridian' ? '#1a2e1a' : 'hsl(var(--background))',
+              backgroundImage: timeTheme === 'viridian'
+                ? `url('/office-sprites/viridian/grass.svg')`
+                : `${themePalette.shell}, linear-gradient(90deg, ${themePalette.gridLine} 1px, transparent 1px), linear-gradient(${themePalette.gridLine} 1px, transparent 1px)`,
+              backgroundSize: timeTheme === 'viridian' ? '32px 32px' : 'auto, 64px 64px, 64px 64px',
+              imageRendering: 'pixelated',
             }}
             onWheel={onMapWheel}
             onMouseDown={onMapMouseDown}
@@ -1672,10 +1697,12 @@ export function OfficePanel() {
             onMouseUp={endMapDrag}
             onMouseLeave={endMapDrag}
           >
+            {timeTheme !== 'viridian' && (<>
             <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: themePalette.haze }} />
             <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: themePalette.glow }} />
             <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: themePalette.atmosphere, mixBlendMode: 'screen', opacity: 0.9 }} />
             <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: themePalette.shadowVeil }} />
+            </>)}
             {timeTheme === 'dawn' && (
               <div
                 className="absolute inset-0 pointer-events-none z-[2]"
@@ -1753,7 +1780,7 @@ export function OfficePanel() {
               <Button variant="ghost" size="xs" onClick={resetMapView} className="h-auto px-1.5 py-0.5 text-[11px] hover:bg-void-cyan/10">{t('resetView')}</Button>
             </div>
             <div className="absolute right-3 top-12 z-30 flex items-center gap-1 rounded-md bg-card/80 backdrop-blur-sm border border-border text-foreground/90 px-2 py-1">
-              {(['dawn', 'day', 'dusk', 'night'] as TimeTheme[]).map((item) => (
+              {(['dawn', 'day', 'dusk', 'night', 'viridian'] as TimeTheme[]).map((item) => (
                 <Button
                   key={item}
                   variant="ghost"
@@ -1786,17 +1813,32 @@ export function OfficePanel() {
                       top: `${tile.y}%`,
                       width: `${tile.w}%`,
                       height: `${tile.h}%`,
-                      backgroundImage: `url('/office-sprites/kenney/floorFull.png')`,
-                      backgroundSize: '100% 100%',
+                      backgroundImage: timeTheme === 'viridian'
+                        ? `url('/office-sprites/viridian/grass.svg')`
+                        : `url('/office-sprites/kenney/floorFull.png')`,
+                      backgroundSize: timeTheme === 'viridian' ? '16px 16px' : '100% 100%',
                       opacity: tile.sprite ? themePalette.floorOpacityA : themePalette.floorOpacityB,
                       filter: themePalette.floorFilter,
+                      imageRendering: timeTheme === 'viridian' ? 'pixelated' : 'auto',
                     }}
                   />
                 ))}
               </div>
 
               {/* Corridor base */}
-              <div className="absolute left-[14%] top-[45%] w-[72%] h-[6%] border-y border-void-cyan/15 shadow-[0_0_30px_hsl(var(--void-cyan)/0.1)]" style={{ backgroundColor: themePalette.corridor }} />
+              <div
+                className="absolute left-[14%] top-[45%] w-[72%] h-[6%]"
+                style={{
+                  backgroundColor: themePalette.corridor,
+                  backgroundImage: timeTheme === 'viridian' ? `url('/office-sprites/viridian/path.svg')` : 'none',
+                  backgroundSize: timeTheme === 'viridian' ? '16px 16px' : 'auto',
+                  imageRendering: 'pixelated',
+                  border: timeTheme === 'viridian' ? '2px solid #888' : undefined,
+                  borderTop: timeTheme !== 'viridian' ? '1px solid hsl(var(--void-cyan)/0.15)' : undefined,
+                  borderBottom: timeTheme !== 'viridian' ? '1px solid hsl(var(--void-cyan)/0.15)' : undefined,
+                  boxShadow: timeTheme !== 'viridian' ? '0 0 30px hsl(var(--void-cyan)/0.1)' : undefined,
+                }}
+              />
               <div className="absolute left-[14%] top-[47.6%] w-[72%] h-[0.7%]" style={{ backgroundColor: themePalette.corridorStripe }} />
 
               <div className="absolute inset-0 pointer-events-none z-[1]">
@@ -1825,9 +1867,13 @@ export function OfficePanel() {
                     top: `${room.y}%`,
                     width: `${room.w}%`,
                     height: `${room.h}%`,
-                    backgroundImage: `linear-gradient(to bottom right, rgba(255,255,255,0.04), rgba(0,0,0,0.1)), url('/office-sprites/kenney/floorFull.png')`,
-                    backgroundSize: 'auto, 22% 22%',
+                    backgroundImage: timeTheme === 'viridian'
+                      ? `url('/office-sprites/viridian/building.svg')`
+                      : `linear-gradient(to bottom right, rgba(255,255,255,0.04), rgba(0,0,0,0.1)), url('/office-sprites/kenney/floorFull.png')`,
+                    backgroundSize: timeTheme === 'viridian' ? '16px 16px' : 'auto, 22% 22%',
                     filter: themePalette.floorFilter,
+                    imageRendering: timeTheme === 'viridian' ? 'pixelated' : 'auto',
+                    border: timeTheme === 'viridian' ? '3px solid #505030' : undefined,
                   }}
                   onClick={(event) => {
                     event.stopPropagation()
@@ -1852,7 +1898,7 @@ export function OfficePanel() {
                   }}
                 >
                   <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `${themePalette.roomTone}, linear-gradient(to bottom right, rgba(255,255,255,0.08), transparent 45%)` }} />
-                  <div className="absolute left-2 top-1 rounded bg-card/70 backdrop-blur-sm border border-void-cyan/15 text-void-cyan/80 text-[9px] px-1.5 py-0.5 font-mono uppercase tracking-wide">
+                  <div className={`absolute left-2 top-1 rounded px-1.5 py-0.5 text-[9px] font-mono uppercase ${timeTheme === 'viridian' ? 'tracking-widest text-yellow-300 drop-shadow-[0_1px_0_#000] bg-black/60 border border-yellow-900/60' : 'bg-card/70 backdrop-blur-sm border border-void-cyan/15 text-void-cyan/80 tracking-wide'}`}>
                     {room.label}
                   </div>
                 </div>

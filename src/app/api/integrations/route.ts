@@ -49,9 +49,18 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: 'nvidia', name: 'NVIDIA', category: 'ai', envVars: ['NVIDIA_API_KEY'], vaultItem: 'openclaw-nvidia-api-key' },
   { id: 'moonshot', name: 'Moonshot / Kimi', category: 'ai', envVars: ['MOONSHOT_API_KEY'], vaultItem: 'openclaw-moonshot-api-key' },
   { id: 'ollama', name: 'Ollama (Local)', category: 'ai', envVars: ['OLLAMA_API_KEY'], vaultItem: 'openclaw-ollama-api-key' },
+  { id: 'google', name: 'Google / Gemini', category: 'ai', envVars: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'], vaultItem: 'openclaw-google-api-key', testable: true },
+  { id: 'groq', name: 'Groq', category: 'ai', envVars: ['GROQ_API_KEY'], vaultItem: 'openclaw-groq-api-key' },
+  { id: 'xai', name: 'xAI (Grok)', category: 'ai', envVars: ['XAI_API_KEY'], vaultItem: 'openclaw-xai-api-key' },
+  { id: 'deepseek', name: 'DeepSeek', category: 'ai', envVars: ['DEEPSEEK_API_KEY'], vaultItem: 'openclaw-deepseek-api-key' },
+  { id: 'perplexity', name: 'Perplexity', category: 'ai', envVars: ['PERPLEXITY_API_KEY'], vaultItem: 'openclaw-perplexity-api-key' },
+  { id: 'together', name: 'Together AI', category: 'ai', envVars: ['TOGETHER_API_KEY'], vaultItem: 'openclaw-together-api-key' },
+  { id: 'mistral', name: 'Mistral', category: 'ai', envVars: ['MISTRAL_API_KEY'], vaultItem: 'openclaw-mistral-api-key' },
 
   // Search
   { id: 'brave', name: 'Brave Search', category: 'search', envVars: ['BRAVE_API_KEY'], vaultItem: 'openclaw-brave-api-key' },
+  { id: 'firecrawl', name: 'Firecrawl', category: 'search', envVars: ['FIRECRAWL_API_KEY'], vaultItem: 'openclaw-firecrawl-api-key', recommendation: 'Web scraping & crawling for AI agents. Get a key at firecrawl.dev' },
+  { id: 'apify', name: 'Apify', category: 'search', envVars: ['APIFY_API_TOKEN'], vaultItem: 'openclaw-apify-api-token', recommendation: 'Web scraping platform. Get a token at apify.com' },
 
   // Social
   {
@@ -68,6 +77,7 @@ const INTEGRATIONS: IntegrationDef[] = [
 
   // Dev Tools
   { id: 'github', name: 'GitHub', category: 'devtools', envVars: ['GITHUB_TOKEN'], vaultItem: 'openclaw-github-token', testable: true },
+  { id: 'google_places', name: 'Google Places', category: 'devtools', envVars: ['GOOGLE_PLACES_API_KEY'], vaultItem: 'openclaw-google-places-api-key' },
 
   // Productivity
   {
@@ -87,6 +97,11 @@ const INTEGRATIONS: IntegrationDef[] = [
 
   // Browser Automation
   { id: 'hyperbrowser', name: 'Hyperbrowser', category: 'browser', envVars: ['HYPERBROWSER_API_KEY'], testable: true, recommendation: 'Cloud browser automation for AI agents. Get a key at hyperbrowser.ai' },
+
+  // Social / Creator Tools
+  { id: 'scrapecreators', name: 'ScrapeCreators', category: 'social', envVars: ['SCRAPECREATORS_API_KEY'], recommendation: 'Social media scraping API for creators.' },
+  { id: 'bluesky', name: 'Bluesky (AT Protocol)', category: 'social', envVars: ['BSKY_APP_PASSWORD'], recommendation: 'Set BSKY_HANDLE and BSKY_APP_PASSWORD for Bluesky access.' },
+  { id: 'twitter_session', name: 'X / Twitter Session (CT0)', category: 'social', envVars: ['CT0'], recommendation: 'Cookie-based Twitter session token.' },
 ]
 
 // Category metadata

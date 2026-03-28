@@ -88,13 +88,14 @@ export interface DashboardData {
 
 // --- Sub-components ---
 
-export function MetricCard({ label, value, total, subtitle, icon, color }: {
+export function MetricCard({ label, value, total, subtitle, icon, color, href }: {
   label: string
   value: number | string
   total?: number
   subtitle?: string
   icon: React.ReactNode
   color: 'blue' | 'green' | 'purple' | 'red'
+  href?: string
 }) {
   const colorMap = {
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -103,8 +104,8 @@ export function MetricCard({ label, value, total, subtitle, icon, color }: {
     red: 'bg-red-500/10 text-red-400 border-red-500/20',
   }
 
-  return (
-    <div className={`rounded-lg border p-3.5 ${colorMap[color]}`}>
+  const inner = (
+    <>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium opacity-80">{label}</span>
         <div className="w-5 h-5 opacity-60">{icon}</div>
@@ -114,6 +115,20 @@ export function MetricCard({ label, value, total, subtitle, icon, color }: {
         {total != null && <span className="text-xs opacity-50 font-mono-tight">/ {total}</span>}
       </div>
       {subtitle && <div className="text-2xs opacity-50 font-mono-tight mt-0.5">{subtitle}</div>}
+    </>
+  )
+
+  if (href) {
+    return (
+      <a href={href} className={`rounded-lg border p-3.5 ${colorMap[color]} block cursor-pointer hover:brightness-110 transition-all`}>
+        {inner}
+      </a>
+    )
+  }
+
+  return (
+    <div className={`rounded-lg border p-3.5 ${colorMap[color]}`}>
+      {inner}
     </div>
   )
 }

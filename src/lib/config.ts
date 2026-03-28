@@ -87,7 +87,9 @@ export const config = {
   tempLogsDir: process.env.CLAWDBOT_TMP_LOG_DIR || '',
   memoryDir: defaultMemoryDir,
   memoryAllowedPrefixes:
-    defaultMemoryDir === openclawWorkspaceDir
+    process.env.OPENCLAW_MEMORY_ALLOWED_PREFIXES
+      ? process.env.OPENCLAW_MEMORY_ALLOWED_PREFIXES.split(',').map((p) => p.trim()).filter(Boolean)
+      : defaultMemoryDir === openclawWorkspaceDir
       ? ['memory/', 'knowledge-base/']
       : [],
   soulTemplatesDir:

@@ -368,8 +368,356 @@ function TelegramCard({ status, accounts, onProbe, probing }: PlatformCardProps)
   )
 }
 
+// ---------------------------------------------------------------------------
+// Discord Config Modal
+// ---------------------------------------------------------------------------
+
+interface DiscordChannelEntry {
+  channelId: string
+  allow: boolean
+  requireMention: boolean
+}
+
+interface DiscordGuildConfig {
+  guildId: string
+  channels: DiscordChannelEntry[]
+}
+
+interface DiscordAccountConfig {
+  accountId: string
+  guilds: DiscordGuildConfig[]
+}
+
+function DiscordConfigModal({ accounts, onClose }: { accounts: ChannelAccount[]; onClose: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [configHash, setConfigHash] = useState<string | null>(null)
+  const [accountConfigs, setAccountConfigs] = useState<DiscordAccountConfig[]>([])
+  const [newChannelInputs, setNewChannelInputs] = useState<Record<string, Record<string, string>>>({})
+  // channelNames: accountId → channelId → name
+  const [channelNames, setChannelNames] = useState<Record<string, Record<string, string>>>({})
+  // Available channels from Discord API: accountId → channelId → name (for dropdown)
+  const [availableChannels, setAvailableChannels] = useState<Record<string, Record<string, string>>>({})
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/gateway-config')
+        if (!res.ok) throw new Error('Failed to load config')
+        const data = await res.json()
+        setConfigHash(data.hash)
+        const discordConfig = data.config?.channels?.discord ?? {}
+        const discordAccounts = discordConfig.accounts ?? {}
+
+        const configs: DiscordAccountConfig[] = accounts.map(acct => {
+          const acctConfig = discordAccounts[acct.accountId] ?? {}
+          const guilds = acctConfig.guilds ?? {}
+          return {
+            accountId: acct.accountId,
+            guilds: Object.entries(guilds).map(([guildId, guildData]: [string, any]) => ({
+              guildId,
+              channels: Object.entries(guildData.channels ?? {}).map(([channelId, chData]: [string, any]) => ({
+                channelId,
+                allow: chData.allow ?? true,
+                requireMention: chData.requireMention ?? false,
+              })),
+            })),
+          }
+        })
+        setAccountConfigs(configs)
+
+        // Collect guild IDs and fetch channel names from Discord API
+        const guildIds = new Set<string>()
+        configs.forEach(acct => acct.guilds.forEach(g => guildIds.add(g.guildId)))
+
+        for (const guildId of guildIds) {
+          // Build accountTokens map (only accounts that have this guild)
+          const accountTokens: Record<string, string> = {}
+          for (const acct of configs) {
+            const hasGuild = acct.guilds.some(g => g.guildId === guildId)
+            if (hasGuild) {
+              const token = discordAccounts[acct.accountId]?.token
+              if (token) accountTokens[acct.accountId] = token
+            }
+          }
+          if (Object.keys(accountTokens).length === 0) continue
+
+          try {
+            const r = await fetch('/api/channels', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'discord-channels', guildId, accountTokens }),
+            })
+            if (r.ok) {
+              const d = await r.json()
+              if (d.channels) {
+                setAvailableChannels(prev => {
+                  const next = { ...prev }
+                  for (const [accountId, nameMap] of Object.entries(d.channels as Record<string, Record<string, string>>)) {
+                    next[accountId] = { ...(next[accountId] ?? {}), ...nameMap }
+                  }
+                  return next
+                })
+                setChannelNames(prev => {
+                  const next = { ...prev }
+                  for (const [accountId, nameMap] of Object.entries(d.channels as Record<string, Record<string, string>>)) {
+                    next[accountId] = { ...(next[accountId] ?? {}), ...nameMap }
+                  }
+                  return next
+                })
+              }
+            }
+          } catch { /* non-fatal */ }
+        }
+      } catch (e: any) {
+        setError(e.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [accounts])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const updates: Record<string, unknown> = {}
+      for (const acct of accountConfigs) {
+        for (const guild of acct.guilds) {
+          const channelsObj: Record<string, { allow: boolean; requireMention: boolean }> = {}
+          for (const ch of guild.channels) {
+            channelsObj[ch.channelId] = { allow: ch.allow, requireMention: ch.requireMention }
+          }
+          updates[`channels.discord.accounts.${acct.accountId}.guilds.${guild.guildId}.channels`] = channelsObj
+        }
+      }
+      const res = await fetch('/api/gateway-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates, hash: configHash }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Save failed')
+      setConfigHash(data.hash)
+      setMessage('Saved! Restart the gateway to apply changes.')
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleAllow = (accountId: string, guildId: string, channelId: string) => {
+    setAccountConfigs(prev => prev.map(acct => acct.accountId !== accountId ? acct : {
+      ...acct,
+      guilds: acct.guilds.map(guild => guild.guildId !== guildId ? guild : {
+        ...guild,
+        channels: guild.channels.map(ch => ch.channelId !== channelId ? ch : { ...ch, allow: !ch.allow }),
+      }),
+    }))
+  }
+
+  const toggleMention = (accountId: string, guildId: string, channelId: string) => {
+    setAccountConfigs(prev => prev.map(acct => acct.accountId !== accountId ? acct : {
+      ...acct,
+      guilds: acct.guilds.map(guild => guild.guildId !== guildId ? guild : {
+        ...guild,
+        channels: guild.channels.map(ch => ch.channelId !== channelId ? ch : { ...ch, requireMention: !ch.requireMention }),
+      }),
+    }))
+  }
+
+  const removeChannel = (accountId: string, guildId: string, channelId: string) => {
+    setAccountConfigs(prev => prev.map(acct => acct.accountId !== accountId ? acct : {
+      ...acct,
+      guilds: acct.guilds.map(guild => guild.guildId !== guildId ? guild : {
+        ...guild,
+        channels: guild.channels.filter(ch => ch.channelId !== channelId),
+      }),
+    }))
+  }
+
+  const addChannel = (accountId: string, guildId: string) => {
+    const input = (newChannelInputs[accountId]?.[guildId] ?? '').trim()
+    if (!input) return
+    setAccountConfigs(prev => prev.map(acct => acct.accountId !== accountId ? acct : {
+      ...acct,
+      guilds: acct.guilds.map(guild => guild.guildId !== guildId ? guild : {
+        ...guild,
+        channels: [
+          ...guild.channels.filter(ch => ch.channelId !== input),
+          { channelId: input, allow: true, requireMention: false },
+        ],
+      }),
+    }))
+    setNewChannelInputs(prev => ({
+      ...prev,
+      [accountId]: { ...(prev[accountId] ?? {}), [guildId]: '' },
+    }))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-card border border-border rounded-lg w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <span className="text-sm font-semibold text-foreground">🎮 Discord — Configure Channels</span>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground leading-none text-base">✕</button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-4 py-3 space-y-4">
+          {loading && <div className="text-xs text-muted-foreground">Loading config…</div>}
+          {error && <div className="text-xs text-red-400 bg-red-500/10 rounded px-2 py-1.5">{error}</div>}
+          {message && <div className="text-xs text-green-400 bg-green-500/10 rounded px-2 py-1.5">{message}</div>}
+
+          {!loading && accountConfigs.map(acct => (
+            <div key={acct.accountId}>
+              <div className="text-xs font-semibold text-foreground mb-2">{acct.accountId}</div>
+              {acct.guilds.length === 0 && (
+                <div className="text-xs text-muted-foreground">No guilds configured for this account.</div>
+              )}
+              {acct.guilds.map(guild => (
+                <div key={guild.guildId} className="bg-muted/20 rounded p-3 space-y-2 mb-2">
+                  <div className="text-[10px] text-muted-foreground font-mono">Guild: {guild.guildId}</div>
+
+                  {/* Legend */}
+                  {guild.channels.length > 0 && (
+                    <div className="grid grid-cols-[1fr_56px_56px_20px] gap-x-2 text-[10px] text-muted-foreground font-medium px-1 mb-1">
+                      <span>Channel</span>
+                      <span className="text-center">Allow</span>
+                      <span className="text-center">Mention</span>
+                      <span />
+                    </div>
+                  )}
+
+                  {/* Channel rows — sorted by name if loaded, else by ID */}
+                  {[...guild.channels].sort((a, b) => {
+                    const na = channelNames[acct.accountId]?.[a.channelId] ?? a.channelId
+                    const nb = channelNames[acct.accountId]?.[b.channelId] ?? b.channelId
+                    return na.localeCompare(nb)
+                  }).map(ch => (
+                    <div key={ch.channelId} className="grid grid-cols-[1fr_56px_56px_20px] gap-x-2 items-center">
+                      <span className="text-[10px] text-foreground truncate leading-tight">
+                        {channelNames[acct.accountId]?.[ch.channelId] ? (
+                          <span className="flex flex-col">
+                            <span><span className="text-muted-foreground">#</span>{channelNames[acct.accountId][ch.channelId]}</span>
+                            <span className="text-[9px] text-muted-foreground/50 font-mono">{ch.channelId}</span>
+                          </span>
+                        ) : (
+                          <span className="flex flex-col">
+                            <span className="font-mono">{ch.channelId}</span>
+                            <span className="text-[9px] text-muted-foreground/50 italic">loading name…</span>
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Allow toggle */}
+                      <button
+                        onClick={() => toggleAllow(acct.accountId, guild.guildId, ch.channelId)}
+                        title="Allow"
+                        className={`relative w-8 h-4 rounded-full transition-colors mx-auto ${ch.allow ? 'bg-green-500' : 'bg-muted-foreground/30'}`}
+                      >
+                        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${ch.allow ? 'right-0.5' : 'left-0.5'}`} />
+                      </button>
+
+                      {/* Require mention toggle */}
+                      <button
+                        onClick={() => toggleMention(acct.accountId, guild.guildId, ch.channelId)}
+                        title="Require mention"
+                        className={`relative w-8 h-4 rounded-full transition-colors mx-auto ${ch.requireMention ? 'bg-blue-500' : 'bg-muted-foreground/30'}`}
+                      >
+                        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${ch.requireMention ? 'right-0.5' : 'left-0.5'}`} />
+                      </button>
+
+                      <button
+                        onClick={() => removeChannel(acct.accountId, guild.guildId, ch.channelId)}
+                        className="text-red-400 hover:text-red-300 text-[10px] leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add channel — dropdown if names loaded, fallback to text input */}
+                  {(() => {
+                    const available = availableChannels[acct.accountId] ?? {}
+                    const existingIds = new Set(guild.channels.map(c => c.channelId))
+                    const options = Object.entries(available)
+                      .filter(([id]) => !existingIds.has(id))
+                      .sort(([, a], [, b]) => a.localeCompare(b))
+                    const inputVal = newChannelInputs[acct.accountId]?.[guild.guildId] ?? ''
+                    const setInput = (v: string) => setNewChannelInputs(prev => ({
+                      ...prev,
+                      [acct.accountId]: { ...(prev[acct.accountId] ?? {}), [guild.guildId]: v },
+                    }))
+
+                    return options.length > 0 ? (
+                      <div className="flex gap-1.5 pt-1">
+                        <select
+                          value={inputVal}
+                          onChange={e => setInput(e.target.value)}
+                          className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                        >
+                          <option value="">— Add a channel —</option>
+                          {options.map(([id, name]) => (
+                            <option key={id} value={id}>#{name}</option>
+                          ))}
+                        </select>
+                        <Button
+                          onClick={() => addChannel(acct.accountId, guild.guildId)}
+                          disabled={!inputVal}
+                          variant="outline"
+                          size="xs"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1.5 pt-1">
+                        <input
+                          type="text"
+                          placeholder="Add channel ID…"
+                          value={inputVal}
+                          onChange={e => setInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && addChannel(acct.accountId, guild.guildId)}
+                          className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
+                        />
+                        <Button onClick={() => addChannel(acct.accountId, guild.guildId)} variant="outline" size="xs">
+                          Add
+                        </Button>
+                      </div>
+                    )
+                  })()}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-border flex justify-end gap-2">
+          <Button onClick={onClose} variant="ghost" size="sm" disabled={saving}>Cancel</Button>
+          <Button onClick={handleSave} variant="default" size="sm" disabled={saving || loading}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Discord Card
+// ---------------------------------------------------------------------------
+
 function DiscordCard({ status, accounts, onProbe, probing }: PlatformCardProps) {
   const botUsername = status?.probe?.bot?.username
+  const [showConfig, setShowConfig] = useState(false)
 
   return (
     <CardShell platform="discord" status={status} accounts={accounts} onProbe={onProbe} probing={probing}>
@@ -381,7 +729,18 @@ function DiscordCard({ status, accounts, onProbe, probing }: PlatformCardProps) 
       </div>
       <ErrorCallout message={status?.lastError} />
       <ProbeResult probe={status?.probe} />
+      {accounts.length > 0 && (
+        <Button
+          onClick={() => setShowConfig(true)}
+          variant="outline"
+          size="xs"
+          className="w-full mt-3"
+        >
+          ⚙️ Configure Channels
+        </Button>
+      )}
       {accounts.length > 1 && <AccountList accounts={accounts} />}
+      {showConfig && <DiscordConfigModal accounts={accounts} onClose={() => setShowConfig(false)} />}
     </CardShell>
   )
 }

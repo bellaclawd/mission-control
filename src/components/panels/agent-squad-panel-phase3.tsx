@@ -306,11 +306,10 @@ export function AgentSquadPanelPhase3() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0">
+      {/* Controls Header */}
+      <div className="flex justify-between items-center px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-foreground">{t('title')}</h2>
-          
+          <div className="w-0" />
           {/* Status Summary */}
           <div className="flex gap-2 text-sm">
             {Object.entries(statusCounts).map(([status, count]) => (
@@ -377,6 +376,25 @@ export function AgentSquadPanelPhase3() {
         </div>
       </div>
 
+      {/* Mission Statement Banner */}
+      <div className="flex-shrink-0 px-6 pt-5 pb-2">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="inline-block border border-border/60 rounded-xl px-5 py-2.5 mb-4 bg-card/40 backdrop-blur-sm">
+            <p className="text-sm italic text-foreground/80 font-medium">
+              &ldquo;An autonomous organization of AI agents that does work for me and produces value 24/7&rdquo;
+            </p>
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Meet the Team</h1>
+          <p className="text-sm text-muted-foreground mb-3">
+            {agents.length} AI agent{agents.length !== 1 ? 's' : ''}, each with a real role and a real personality.
+          </p>
+          <p className="text-xs text-muted-foreground/60 max-w-lg mx-auto leading-relaxed">
+            We wanted to see what happens when AI doesn&apos;t just answer questions — but actually runs a company.
+            Research markets. Write content. Post on social media. Ship products. All without being told what to do.
+          </p>
+        </div>
+      </div>
+
       {/* Sync Toast */}
       {syncToast && (
         <div className={`p-3 m-4 rounded-lg text-sm ${syncToast.includes('failed') ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-green-500/10 border border-green-500/20 text-green-400'}`}>
@@ -399,8 +417,8 @@ export function AgentSquadPanelPhase3() {
         </div>
       )}
 
-      {/* Agent Grid */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      {/* Org Chart */}
+      <div className="flex-1 p-8 overflow-y-auto">
         {agents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/50">
             <div className="w-12 h-12 rounded-full bg-surface-2 flex items-center justify-center mb-3">
@@ -410,136 +428,22 @@ export function AgentSquadPanelPhase3() {
               </svg>
             </div>
             <p className="text-sm font-medium">{t('noAgents')}</p>
-            <p className="text-xs text-muted-foreground/70 mt-1 max-w-xs text-center">
-              {t('noAgentsHint')}
-            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1 max-w-xs text-center">{t('noAgentsHint')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agents.map(agent => {
-              const modelName = formatModelName(agent.config)
-              const taskStatsLine = buildTaskStatParts(agent.taskStats)
-
-              return (
-                <div
-                  key={agent.id}
-                  className="group relative overflow-hidden rounded-xl border border-border/70 bg-card p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border hover:shadow-lg cursor-pointer"
-                  onClick={() => setSelectedAgent(agent)}
-                >
-                  <div className={`pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${(statusCardStyles[agent.status] || defaultCardStyle).edge}`} />
-                  {agent.hidden ? <div className="absolute top-2 right-2 text-2xs text-slate-500">hidden</div> : null}
-
-                  {/* Header: avatar + name + status */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <AgentAvatar name={agent.name} size="md" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="font-semibold text-foreground truncate">{agent.name}</h3>
-                          {(agent as any).source && (agent as any).source !== 'manual' && (
-                            <span className={`text-2xs px-1.5 py-0.5 rounded-full border ${
-                              (agent as any).source === 'local'
-                                ? 'bg-violet-500/15 text-violet-300 border-violet-500/30'
-                                : (agent as any).source === 'gateway'
-                                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-                                  : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
-                            }`}>
-                              {(agent as any).source}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {agent.role}{modelName && <> · <span className="font-mono text-muted-foreground/80">{modelName}</span></>}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {hasRecentHeartbeat(agent) && (
-                        <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" title="Recent heartbeat" />
-                      )}
-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs capitalize ${statusBadgeStyles[agent.status]}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${(statusCardStyles[agent.status] || defaultCardStyle).dot}`} />
-                        {agent.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Task stats — inline */}
-                  {taskStatsLine && (
-                    <div className="text-xs text-muted-foreground mb-2 pl-0.5">
-                      {taskStatsLine.map((part, i) => (
-                        <span key={part.label}>
-                          {i > 0 && <span className="mx-1 text-muted-foreground/40">·</span>}
-                          <span className={part.color || 'text-foreground/80'}>{part.count}</span>
-                          {' '}{part.label}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Footer: last seen + actions */}
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/30">
-                    <span className="text-[11px] text-muted-foreground/70">
-                      {formatLastSeen(agent.last_seen)}
-                    </span>
-                    <div className="flex gap-1">
-                      {agent.session_key ? (
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            wakeAgent(agent.name, agent.session_key!)
-                          }}
-                          size="xs"
-                          variant="ghost"
-                          className="h-6 px-2 text-xs text-cyan-300 hover:bg-cyan-500/15 hover:text-cyan-200"
-                          title="Wake agent via session"
-                        >
-                          {t('wake')}
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            updateAgentStatus(agent.name, 'idle', 'Manually activated')
-                          }}
-                          disabled={agent.status === 'idle'}
-                          size="xs"
-                          variant="ghost"
-                          className="h-6 px-2 text-xs"
-                        >
-                          {t('wake')}
-                        </Button>
-                      )}
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedAgent(agent)
-                          setShowQuickSpawnModal(true)
-                        }}
-                        size="xs"
-                        variant="ghost"
-                        className="h-6 px-2 text-xs text-blue-300 hover:bg-blue-500/15 hover:text-blue-200"
-                      >
-                        {t('spawn')}
-                      </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleAgentHidden(agent.id, !agent.hidden)
-                        }}
-                        size="xs"
-                        variant="ghost"
-                        className="h-6 px-2 text-xs text-slate-400 hover:bg-slate-500/15 hover:text-slate-300"
-                      >
-                        {agent.hidden ? 'Unhide' : 'Hide'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <OrgChart
+            agents={agents}
+            onSelect={setSelectedAgent}
+            onWake={(agent) => agent.session_key ? wakeAgent(agent.name, agent.session_key) : updateAgentStatus(agent.name, 'idle', 'Manually activated')}
+            onSpawn={(agent) => { setSelectedAgent(agent); setShowQuickSpawnModal(true) }}
+            onToggleHidden={(agent) => toggleAgentHidden(agent.id, !agent.hidden)}
+            hasRecentHeartbeat={hasRecentHeartbeat}
+            formatLastSeen={formatLastSeen}
+            t={t}
+            statusCardStyles={statusCardStyles}
+            statusBadgeStyles={statusBadgeStyles}
+            defaultCardStyle={defaultCardStyle}
+          />
         )}
       </div>
 
@@ -1220,3 +1124,206 @@ function QuickSpawnModal({
 }
 
 export default AgentSquadPanelPhase3
+
+// ─── Hierarchy config ─────────────────────────────────────────────────────────
+
+const HIERARCHY: Record<string, { title: string; reportsTo: string | null; emoji: string }> = {
+  Bella: { title: 'CEO', reportsTo: null, emoji: '👑' },
+  Ash:   { title: 'VP of Pokémon', reportsTo: 'Bella', emoji: '🎮' },
+  Clyde: { title: 'VP of Questions', reportsTo: 'Bella', emoji: '🤙' },
+  Stan:  { title: 'VP of Websites', reportsTo: 'Bella', emoji: '🌐' },
+}
+
+// Agents whose names suggest they are transient spawned subagents — hide from org chart
+function isTransientAgent(name: string): boolean {
+  if (!name) return true
+  // Subagents spawned by OpenClaw often have generic names like "Agent", "agent", or UUID-like strings
+  const lower = name.toLowerCase()
+  return lower === 'agent' || /^agent[\s_-]?\d*$/i.test(name) || /^[0-9a-f-]{8,}$/i.test(name)
+}
+
+// ─── OrgChart ─────────────────────────────────────────────────────────────────
+
+function OrgChart({
+  agents, onSelect, onWake, onSpawn, onToggleHidden,
+  hasRecentHeartbeat, formatLastSeen, t,
+  statusCardStyles, statusBadgeStyles, defaultCardStyle,
+}: {
+  agents: any[]
+  onSelect: (a: any) => void
+  onWake: (a: any) => void
+  onSpawn: (a: any) => void
+  onToggleHidden: (a: any) => void
+  hasRecentHeartbeat: (a: any) => boolean
+  formatLastSeen: (ts?: number) => string
+  t: any
+  statusCardStyles: Record<string, any>
+  statusBadgeStyles: Record<string, string>
+  defaultCardStyle: any
+}) {
+  const byName: Record<string, any> = {}
+  agents.forEach(a => { byName[a.name] = a })
+
+  const roots: any[] = []
+  const childMap: Record<string, any[]> = {}
+
+  // First pass: assign known children
+  agents.forEach(agent => {
+    if (isTransientAgent(agent.name)) return // skip transient subagents
+    const h = HIERARCHY[agent.name]
+    if (h && h.reportsTo) {
+      if (!childMap[h.reportsTo]) childMap[h.reportsTo] = []
+      childMap[h.reportsTo].push(agent)
+    } else if (!h) {
+      // Unknown agent not in hierarchy → treat as generic agent under Bella
+      if (!childMap['Bella']) childMap['Bella'] = []
+      childMap['Bella'].push(agent)
+    }
+  })
+  // Second pass: roots are agents with no parent (reportsTo === null) and not a child
+  agents.forEach(agent => {
+    if (isTransientAgent(agent.name)) return
+    const h = HIERARCHY[agent.name]
+    const isChild = Object.values(childMap).flat().some((c: any) => c.id === agent.id)
+    if (!isChild) roots.push(agent)
+  })
+  // Ensure Bella is always first in roots
+  roots.sort((a, b) => {
+    if (a.name === 'Bella') return -1
+    if (b.name === 'Bella') return 1
+    return 0
+  })
+
+  return (
+    <div className="flex flex-col items-center gap-0">
+      {roots.map(root => (
+        <OrgNode
+          key={root.id}
+          agent={root}
+          children={childMap[root.name] || []}
+          childMap={childMap}
+          isRoot
+          onSelect={onSelect}
+          onWake={onWake}
+          onSpawn={onSpawn}
+          onToggleHidden={onToggleHidden}
+          hasRecentHeartbeat={hasRecentHeartbeat}
+          formatLastSeen={formatLastSeen}
+          t={t}
+          statusCardStyles={statusCardStyles}
+          statusBadgeStyles={statusBadgeStyles}
+          defaultCardStyle={defaultCardStyle}
+        />
+      ))}
+    </div>
+  )
+}
+
+function OrgNode({
+  agent, children, childMap, isRoot = false,
+  onSelect, onWake, onSpawn, onToggleHidden,
+  hasRecentHeartbeat, formatLastSeen, t,
+  statusCardStyles, statusBadgeStyles, defaultCardStyle,
+}: {
+  agent: any
+  children: any[]
+  childMap: Record<string, any[]>
+  isRoot?: boolean
+  onSelect: (a: any) => void
+  onWake: (a: any) => void
+  onSpawn: (a: any) => void
+  onToggleHidden: (a: any) => void
+  hasRecentHeartbeat: (a: any) => boolean
+  formatLastSeen: (ts?: number) => string
+  t: any
+  statusCardStyles: Record<string, any>
+  statusBadgeStyles: Record<string, string>
+  defaultCardStyle: any
+}) {
+  const h = HIERARCHY[agent.name]
+  const title = h?.title || agent.role || 'Agent'
+  const emoji = h?.emoji || '🤖'
+  const cardStyle = statusCardStyles[agent.status] || defaultCardStyle
+  const badgeStyle = statusBadgeStyles[agent.status] || ''
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Card */}
+      <div
+        onClick={() => onSelect(agent)}
+        className={`relative overflow-hidden cursor-pointer select-none rounded-2xl border bg-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl
+          ${isRoot ? 'w-72 p-6 border-2 border-blue-500/40 shadow-lg' : 'w-60 p-4 border border-border/70 shadow-md'}`}
+      >
+        {/* Left accent bar */}
+        <div className={`pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${cardStyle.edge}`} />
+        {!!agent.hidden && <div className="absolute top-2 right-2 text-2xs text-slate-500">hidden</div>}
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <div className={`relative flex items-center justify-center rounded-full font-bold shadow-inner
+            ${isRoot ? 'w-20 h-20 text-3xl bg-gradient-to-br from-blue-600 to-purple-600' : 'w-16 h-16 text-2xl bg-gradient-to-br from-teal-600 to-blue-600'}`}>
+            {emoji}
+            {hasRecentHeartbeat(agent) && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-cyan-400 border-2 border-background animate-pulse" title="Recent heartbeat" />
+            )}
+            <span className={`absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-background ${cardStyle.dot}`} />
+          </div>
+
+          {/* Name + title + status */}
+          <div className="text-center">
+            <div className={`font-bold text-foreground ${isRoot ? 'text-xl' : 'text-base'}`}>{agent.name}</div>
+            <div className={`font-medium mt-0.5 ${isRoot ? 'text-blue-400 text-sm' : 'text-teal-400 text-xs'}`}>{title}</div>
+            <div className="mt-2">
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs capitalize ${badgeStyle}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${cardStyle.dot}`} />
+                {agent.status}
+              </span>
+            </div>
+            <div className="text-[11px] text-muted-foreground/60 mt-1.5">
+              {formatLastSeen(agent.last_seen)}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-1 mt-1" onClick={e => e.stopPropagation()}>
+            <Button onClick={() => onWake(agent)} size="xs" variant="ghost" className="h-6 px-2 text-xs text-cyan-300 hover:bg-cyan-500/15">{t('wake')}</Button>
+            <Button onClick={() => onSpawn(agent)} size="xs" variant="ghost" className="h-6 px-2 text-xs text-blue-300 hover:bg-blue-500/15">{t('spawn')}</Button>
+            <Button onClick={() => onToggleHidden(agent)} size="xs" variant="ghost" className="h-6 px-2 text-xs text-slate-400 hover:bg-slate-500/15">{agent.hidden ? 'Unhide' : 'Hide'}</Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Connector + children */}
+      {children.length > 0 && (
+        <div className="flex flex-col items-center">
+          <div className="w-px h-8 bg-border/60" />
+          {children.length > 1 && (
+            <div className="h-px bg-border/60" style={{ width: `${children.length * 280 - 40}px` }} />
+          )}
+          <div className="flex gap-10">
+            {children.map(child => (
+              <div key={child.id} className="flex flex-col items-center">
+                <div className="w-px h-8 bg-border/60" />
+                <OrgNode
+                  agent={child}
+                  children={childMap[child.name] || []}
+                  childMap={childMap}
+                  onSelect={onSelect}
+                  onWake={onWake}
+                  onSpawn={onSpawn}
+                  onToggleHidden={onToggleHidden}
+                  hasRecentHeartbeat={hasRecentHeartbeat}
+                  formatLastSeen={formatLastSeen}
+                  t={t}
+                  statusCardStyles={statusCardStyles}
+                  statusBadgeStyles={statusBadgeStyles}
+                  defaultCardStyle={defaultCardStyle}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

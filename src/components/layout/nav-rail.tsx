@@ -29,22 +29,22 @@ const navGroups: NavGroup[] = [
     id: 'core',
     items: [
       { id: 'overview', label: 'Overview', icon: <OverviewIcon />, priority: true, essential: true },
-      { id: 'agents', label: 'Agents', icon: <AgentsIcon />, priority: true, essential: true },
+      { id: 'agents', label: 'Team', icon: <AgentsIcon />, priority: true, essential: true },
       { id: 'tasks', label: 'Tasks', icon: <TasksIcon />, priority: true, essential: true },
-      { id: 'chat', label: 'Chat', icon: <ChatIcon />, priority: false, essential: true },
-      { id: 'channels', label: 'Channels', icon: <ChannelsIcon />, priority: false },
+      { id: 'projects', label: 'Projects', icon: <ProjectsIcon />, priority: true, essential: true },
       { id: 'skills', label: 'Skills', icon: <SkillsIcon />, priority: false },
       { id: 'memory', label: 'Memory', icon: <MemoryIcon />, priority: false },
+      { id: 'files', label: 'Files', icon: <FilesIcon />, priority: false },
+      { id: 'checklist', label: 'Checklist', icon: <ChecklistIcon />, priority: false },
     ],
   },
   {
     id: 'observe',
     label: 'OBSERVE',
     items: [
-      { id: 'activity', label: 'Activity', icon: <ActivityIcon />, priority: true, essential: true },
-      { id: 'logs', label: 'Logs', icon: <LogsIcon />, priority: false, essential: true },
+      { id: 'activity', label: 'Activity & Logs', icon: <ActivityIcon />, priority: true, essential: true },
       { id: 'cost-tracker', label: 'Cost Tracker', icon: <TokensIcon />, priority: false },
-      { id: 'nodes', label: 'Nodes', icon: <NodesIcon />, priority: false },
+
       { id: 'exec-approvals', label: 'Approvals', icon: <ApprovalsIcon />, priority: false },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
@@ -55,9 +55,7 @@ const navGroups: NavGroup[] = [
     label: 'AUTOMATE',
     items: [
       { id: 'cron', label: 'Cron', icon: <CronIcon />, priority: false },
-      { id: 'webhooks', label: 'Webhooks', icon: <WebhookIcon />, priority: false },
       { id: 'alerts', label: 'Alerts', icon: <AlertIcon />, priority: false },
-      { id: 'github', label: 'GitHub', icon: <GitHubIcon />, priority: false },
     ],
   },
   {
@@ -65,17 +63,7 @@ const navGroups: NavGroup[] = [
     label: 'ADMIN',
     items: [
       { id: 'security', label: 'Security', icon: <SecurityIcon />, priority: false },
-      { id: 'users', label: 'Users', icon: <UsersIcon />, priority: false },
-      { id: 'audit', label: 'Audit', icon: <AuditIcon />, priority: false },
-      {
-        id: 'gateway-parent', label: 'Gateway', icon: <GatewaysIcon />, priority: false,
-        children: [
-          { id: 'gateways', label: 'Gateways', icon: <GatewaysIcon />, priority: false },
-          { id: 'gateway-config', label: 'Config', icon: <GatewayConfigIcon />, priority: false },
-        ],
-      },
       { id: 'integrations', label: 'Integrations', icon: <IntegrationsIcon />, priority: false },
-      { id: 'debug', label: 'Debug', icon: <DebugIcon />, priority: false },
       { id: 'settings', label: 'Settings', icon: <SettingsIcon />, priority: false, essential: true },
     ],
   },
@@ -86,28 +74,19 @@ const navItemTranslationKeys: Record<string, string> = {
   overview: 'overview',
   agents: 'agents',
   tasks: 'tasks',
-  chat: 'chat',
-  channels: 'channels',
+  projects: 'projects',
   skills: 'skills',
   memory: 'memory',
+  files: 'files',
+  checklist: 'checklist',
   activity: 'activity',
-  logs: 'logs',
   'cost-tracker': 'costTracker',
-  nodes: 'nodes',
   'exec-approvals': 'approvals',
   office: 'office',
   cron: 'cron',
-  webhooks: 'webhooks',
   alerts: 'alerts',
-  github: 'github',
   security: 'security',
-  users: 'users',
-  audit: 'audit',
-  'gateway-parent': 'gateway',
-  gateways: 'gateways',
-  'gateway-config': 'config',
   integrations: 'integrations',
-  debug: 'debug',
   settings: 'settings',
 }
 
@@ -930,7 +909,7 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
                   onClick={async () => {
                     if (interfaceMode === 'essential') return
                     setInterfaceMode('essential')
-                    const essentialIds = new Set(['overview', 'agents', 'tasks', 'chat', 'activity', 'logs', 'settings'])
+                    const essentialIds = new Set(['overview', 'agents', 'tasks', 'activity', 'settings'])
                     if (!essentialIds.has(activeTab)) navigateToPanel('overview')
                     try { await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: { 'general.interface_mode': 'essential' } }) }) } catch {}
                   }}
@@ -1235,6 +1214,14 @@ function TasksIcon() {
   )
 }
 
+function ProjectsIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 2H12.5A1.5 1.5 0 0 1 14 6.5v6A1.5 1.5 0 0 1 12.5 14h-9A1.5 1.5 0 0 1 2 12.5V4.5z" />
+    </svg>
+  )
+}
+
 function ChatIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -1508,6 +1495,30 @@ function MonitorIcon() {
       <rect x="1" y="2" width="14" height="10" rx="1.5" />
       <polyline points="4,9 6,6 8,8 12,4" />
       <path d="M5 14h6" />
+    </svg>
+  )
+}
+
+function FilesIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5L9 1z"/>
+      <polyline points="9 1 9 5 13 5"/>
+      <line x1="5" y1="8" x2="11" y2="8"/>
+      <line x1="5" y1="11" x2="11" y2="11"/>
+    </svg>
+  )
+}
+
+function ChecklistIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="4" x2="14" y2="4"/>
+      <line x1="6" y1="8" x2="14" y2="8"/>
+      <line x1="6" y1="12" x2="14" y2="12"/>
+      <polyline points="2 4 3 5 5 3"/>
+      <polyline points="2 8 3 9 5 7"/>
+      <polyline points="2 12 3 13 5 11"/>
     </svg>
   )
 }

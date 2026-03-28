@@ -64,6 +64,28 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
+
+function formatRelativeTime(ms: number): string {
+  const diff = Date.now() - ms
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+function formatJournalDate(filename: string): string {
+  // filename like "2024-03-22.md" or "2024-03-22"
+  const match = filename.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) return filename.replace(/\.md$/, '')
+  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`
+}
+
 function countFiles(files: MemoryFile[]): number {
   return files.reduce((acc, f) => {
     if (f.type === 'file') return acc + 1
@@ -130,6 +152,7 @@ export function MemoryBrowserPanel() {
   const [isLoadingHermes, setIsLoadingHermes] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [fileFilter, setFileFilter] = useState<'all' | 'daily' | 'knowledge'>('all')
+  const [selectedAgent, setSelectedAgent] = useState<string>('all')
   const [schemaWarnings, setSchemaWarnings] = useState<string[]>([])
   const [linksOpen, setLinksOpen] = useState(false)
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null)
@@ -155,7 +178,7 @@ export function MemoryBrowserPanel() {
   const loadFileTree = useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await fetchTree({ depth: 1 })
+      const data = await fetchTree({ depth: 2 })
       setMemoryFiles(data.tree || [])
       setExpandedFolders(new Set(['daily', 'knowledge', 'memory', 'knowledge-base']))
       setIsHydratingTree(true)
@@ -180,16 +203,48 @@ export function MemoryBrowserPanel() {
     loadFileTree()
   }, [loadFileTree])
 
+  // Detect agent workspace folders (e.g. workspace-main, workspace-ash)
+  const agentNameMap: Record<string, string> = {
+    main: 'Bella',
+    ash: 'Ash',
+    clyde: 'Clyde',
+    stan: 'Stan',
+    voice: 'Voice',
+  }
+  const agentFolders = useMemo(() => {
+    const folders = memoryFiles
+      .filter(f => f.type === 'directory' && f.name.startsWith('workspace-'))
+      .map(f => {
+        const id = f.name.replace('workspace-', '')
+        return {
+          id,
+          name: agentNameMap[id] || (id.charAt(0).toUpperCase() + id.slice(1)),
+          path: f.name,
+        }
+      })
+    return folders
+  }, [memoryFiles])
+
+  const hasAgentFolders = agentFolders.length > 0
+
+  // Files scoped to the selected agent (or all)
+  const agentScopedFiles = useMemo(() => {
+    if (!hasAgentFolders || selectedAgent === 'all') return memoryFiles
+    const agentFolder = memoryFiles.find(f => f.name === `workspace-${selectedAgent}`)
+    return agentFolder?.children || []
+  }, [memoryFiles, selectedAgent, hasAgentFolders])
+
   const filteredFiles = useMemo(() => {
-    if (fileFilter === 'all') return memoryFiles
+    const base = agentScopedFiles
+    if (fileFilter === 'all') return base
     const prefixes = fileFilter === 'daily'
       ? ['daily/', 'memory/']
       : ['knowledge/', 'knowledge-base/']
-    return memoryFiles.filter((file) => {
+    return base.filter((file) => {
       const p = `${file.path.replace(/\\/g, '/')}/`
       return prefixes.some((prefix) => p.startsWith(prefix))
     })
-  }, [memoryFiles, fileFilter])
+  }, [agentScopedFiles, fileFilter])
 
   const loadFileContent = async (filePath: string) => {
     setIsLoading(true)
@@ -387,6 +442,46 @@ export function MemoryBrowserPanel() {
   const fileCount = useMemo(() => countFiles(memoryFiles), [memoryFiles])
   const sizeTotal = useMemo(() => totalSize(memoryFiles), [memoryFiles])
 
+  const memoryMd = useMemo(() => {
+    const findInTree = (files: MemoryFile[]): MemoryFile | null => {
+      for (const f of files) {
+        if (f.type === 'file' && f.name === 'MEMORY.md') return f
+        if (f.children) {
+          const found = findInTree(f.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    return findInTree(agentScopedFiles)
+  }, [agentScopedFiles])
+
+  const dailyJournalFiles = useMemo(() => {
+    // Files may be at root level (when memoryDir points directly to the memory folder)
+    const rootLevelFiles = agentScopedFiles.filter(f => f.type === 'file' && /^\d{4}-\d{2}-\d{2}/.test(f.name))
+    if (rootLevelFiles.length > 0) {
+      return rootLevelFiles.sort((a, b) => b.name.localeCompare(a.name))
+    }
+    // Fallback: look for a 'memory' subdirectory
+    const findMemDir = (files: MemoryFile[]): MemoryFile | null => {
+      for (const f of files) {
+        if (f.type === 'directory' && f.name === 'memory') return f
+        if (f.children) {
+          const found = findMemDir(f.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    const memDir = findMemDir(agentScopedFiles)
+    const children = memDir?.children || []
+    return children
+      .filter(f => f.type === 'file' && /^\d{4}-\d{2}-\d{2}/.test(f.name))
+      .sort((a, b) => b.name.localeCompare(a.name))
+  }, [agentScopedFiles])
+
+
+
   const navigateToWikiLink = (target: string) => {
     const findFile = (files: MemoryFile[]): string | null => {
       for (const f of files) {
@@ -502,7 +597,9 @@ export function MemoryBrowserPanel() {
         elements.push(<h3 key={i} className="text-base font-semibold mt-4 mb-1.5 text-foreground/80 font-mono">{renderInline(text)}</h3>)
       } else if (trimmed.startsWith('- ')) {
         elements.push(
-          <li key={i} className="ml-5 mb-0.5 list-disc text-foreground/80 text-sm leading-relaxed">{renderInline(trimmed.slice(2))}</li>
+          <li key={i} className="mb-1 list-none text-foreground/80 text-sm leading-relaxed">
+            <span className="inline bg-indigo-950/40 rounded px-2 py-0.5">{renderInline(trimmed.slice(2))}</span>
+          </li>
         )
       } else if (trimmed === '') {
         elements.push(<div key={i} className="h-2" />)
@@ -562,21 +659,47 @@ export function MemoryBrowserPanel() {
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
         {sidebarOpen && (
-          <div className="w-60 shrink-0 border-r border-border bg-[hsl(var(--surface-0))] flex flex-col min-h-0">
-            <div className="p-2">
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchFiles()} placeholder={t('searchPlaceholder')} className="w-full px-2 py-1.5 text-xs font-mono bg-[hsl(var(--surface-1))] border border-border/50 rounded text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-primary/30" />
+          <div className="w-64 shrink-0 border-r border-border bg-[#141418] flex flex-col min-h-0">
+            {/* Search bar */}
+            <div className="p-3 space-y-2">
+              {/* Agent selector */}
+              {hasAgentFolders && (
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={() => setSelectedAgent('all')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${selectedAgent === 'all' ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40' : 'text-muted-foreground/60 hover:text-muted-foreground border border-transparent hover:border-white/10'}`}
+                  >All</button>
+                  {agentFolders.map(agent => (
+                    <button
+                      key={agent.id}
+                      onClick={() => setSelectedAgent(agent.id)}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-colors ${selectedAgent === agent.id ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40' : 'text-muted-foreground/60 hover:text-muted-foreground border border-transparent hover:border-white/10'}`}
+                    >{agent.name}</button>
+                  ))}
+                </div>
+              )}
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchFiles()}
+                  placeholder="Search memory..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#1C1C22] border border-white/8 rounded-md text-foreground placeholder-muted-foreground/35 focus:outline-none focus:border-indigo-500/40"
+                />
+              </div>
             </div>
-            <div className="flex gap-0.5 px-2 pb-2">
-              {(['all', 'daily', 'knowledge'] as const).map((f) => (
-                <button key={f} onClick={() => setFileFilter(f)} className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${fileFilter === f ? 'bg-[hsl(var(--surface-2))] text-foreground' : 'text-muted-foreground/60 hover:text-muted-foreground'}`}>{f}</button>
-              ))}
-            </div>
+
+            {/* Search results */}
             {searchResults.length > 0 && (
-              <div className="px-2 pb-2 border-b border-border/50">
-                <div className="text-[10px] text-muted-foreground/50 font-mono mb-1">{t('searchResults', { count: searchResults.length })}</div>
+              <div className="px-3 pb-2 border-b border-border/30">
+                <div className="text-[10px] text-muted-foreground/50 mb-1">{t('searchResults', { count: searchResults.length })}</div>
                 <div className="max-h-28 overflow-y-auto space-y-px">
                   {searchResults.map((r, i) => (
-                    <div key={i} className="flex items-center gap-1.5 py-1 px-1.5 rounded text-xs font-mono cursor-pointer hover:bg-[hsl(var(--surface-2))] text-muted-foreground" onClick={() => { loadFileContent(r.path); setSearchResults([]) }}>
+                    <div key={i} className="flex items-center gap-1.5 py-1 px-1.5 rounded text-xs cursor-pointer hover:bg-[#2A2D35] text-muted-foreground" onClick={() => { loadFileContent(r.path); setSearchResults([]) }}>
                       <span className="truncate flex-1">{r.name}</span>
                       <span className="text-[10px] text-muted-foreground/40">{r.matches}</span>
                     </div>
@@ -584,15 +707,77 @@ export function MemoryBrowserPanel() {
                 </div>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto py-1">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-20"><Loader variant="inline" /></div>
-              ) : filteredFiles.length === 0 ? (
-                <div className="text-center text-muted-foreground/40 text-xs font-mono py-8">{t('noFiles')}</div>
-              ) : renderTree(filteredFiles)}
+
+            <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-3">
+              {/* Long-Term Memory card */}
+              <div
+                className={`mt-1 rounded-lg border cursor-pointer transition-colors ${selectedMemoryFile === 'MEMORY.md' || selectedMemoryFile === memoryMd?.path ? 'bg-[#2A2D35] border-indigo-500/25' : 'bg-[#1C1C22] border-white/8 hover:bg-[#1E1E26] hover:border-white/12'}`}
+                onClick={() => memoryMd && loadFileContent(memoryMd.path)}
+              >
+                <div className="flex items-center gap-3 p-3">
+                  <div className="w-8 h-8 rounded-full bg-green-500/15 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-[#4ADE80]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.75 3.75 0 01-5.303 0l-.347-.347z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-foreground leading-tight">Long-Term Memory 📌</div>
+                    <div className="text-[11px] text-muted-foreground/55 mt-0.5 leading-tight">
+                      {memoryMd ? (
+                        <span>{Math.round((memoryMd.size || 0) / 5).toLocaleString()} words · Updated {memoryMd.modified ? formatRelativeTime(memoryMd.modified) : 'unknown'}</span>
+                      ) : (
+                        <span className="text-muted-foreground/30">MEMORY.md not found</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Daily Journal section */}
+              <div>
+                <div className="flex items-center gap-2 px-1 mb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Daily Journal</span>
+                  {dailyJournalFiles.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-600/20 text-indigo-400 border border-indigo-500/20">{dailyJournalFiles.length}</span>
+                  )}
+                </div>
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-16"><Loader variant="inline" /></div>
+                ) : dailyJournalFiles.length === 0 ? (
+                  <div className="text-center text-muted-foreground/30 text-xs py-4">No journal entries</div>
+                ) : (
+                  <div className="space-y-px">
+                    {dailyJournalFiles.map((file) => {
+                      const isSelected = selectedMemoryFile === file.path
+                      const sizeKb = ((file.size || 0) / 1024).toFixed(1)
+                      const words = Math.round((file.size || 0) / 5)
+                      return (
+                        <div
+                          key={file.path}
+                          onClick={() => loadFileContent(file.path)}
+                          className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-[#2A2D35]' : 'hover:bg-[#1C1C22]'}`}
+                        >
+                          <svg className="w-3.5 h-3.5 text-muted-foreground/35 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-[13px] truncate leading-tight ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
+                              {formatJournalDate(file.name)}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground/40 leading-tight mt-0.5">
+                              {sizeKb} KB · {words.toLocaleString()} words
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="p-2 border-t border-border/50">
-              <button onClick={loadFileTree} disabled={isLoading} className="w-full py-1 text-[11px] font-mono text-muted-foreground/50 hover:text-muted-foreground rounded hover:bg-[hsl(var(--surface-1))] transition-colors">{t('refresh')}</button>
+
+            <div className="p-2 border-t border-border/30">
+              <button onClick={loadFileTree} disabled={isLoading} className="w-full py-1 text-[11px] text-muted-foreground/40 hover:text-muted-foreground rounded hover:bg-[#1C1C22] transition-colors">↻ refresh</button>
             </div>
           </div>
         )}

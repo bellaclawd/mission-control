@@ -9,6 +9,14 @@ import { useNavigateToPanel } from '@/lib/navigation'
 import { SecurityScanCard } from '@/components/onboarding/security-scan-card'
 import { Loader } from '@/components/ui/loader'
 import { clearOnboardingDismissedThisSession, clearOnboardingReplayFromStart } from '@/lib/onboarding-session'
+import { DebugPanel } from '@/components/panels/debug-panel'
+import { AuditTrailPanel } from '@/components/panels/audit-trail-panel'
+import { UserManagementPanel } from '@/components/panels/user-management-panel'
+import { NodesPanel } from '@/components/panels/nodes-panel'
+import { MultiGatewayPanel } from '@/components/panels/multi-gateway-panel'
+import { WebhookPanel } from '@/components/panels/webhook-panel'
+import { GitHubSyncPanel } from '@/components/panels/github-sync-panel'
+import { ChannelsPanel } from '@/components/panels/channels-panel'
 import { resolveCoordinatorDeliveryTarget, type CoordinatorAgentRecord } from '@/lib/coordinator-routing'
 import type { GatewaySession } from '@/lib/sessions'
 
@@ -117,6 +125,7 @@ export function SettingsPanel() {
   // Track edited values (key -> new value)
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [activeCategory, setActiveCategory] = useState('general')
+  const [specialTab, setSpecialTab] = useState<string | null>(null)
 
   // API key management state
   const [apiKeyInfo, setApiKeyInfo] = useState<ApiKeyInfo | null>(null)
@@ -650,18 +659,18 @@ export function SettingsPanel() {
       <LanguageSection />
 
       {/* Category tabs */}
-      <div className="flex gap-1 border-b border-border pb-px">
+      <div className="flex gap-1 border-b border-border pb-px flex-wrap">
         {categories.map(cat => {
           const meta = categoryLabels[cat] || { label: cat, icon: '📋', description: '' }
           const changedCount = (grouped[cat] || []).filter(s => edits[s.key] !== undefined && edits[s.key] !== s.value).length
           return (
             <Button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => { setActiveCategory(cat); setSpecialTab(null) }}
               variant="ghost"
               size="sm"
               className={`rounded-t-md rounded-b-none relative ${
-                activeCategory === cat
+                !specialTab && activeCategory === cat
                   ? 'bg-card text-foreground border border-border border-b-card -mb-px'
                   : ''
               }`}
@@ -675,7 +684,37 @@ export function SettingsPanel() {
             </Button>
           )
         })}
+        <div className="w-px bg-border mx-1 self-stretch" />
+        {(['debug', 'audit', 'users', 'nodes', 'gateway', 'webhooks', 'github', 'channels'] as const).map(tab => {
+          const labels: Record<string, string> = { debug: 'Debug', audit: 'Audit', users: 'Users', nodes: 'Nodes', gateway: 'Gateway', webhooks: 'Webhooks', github: 'GitHub', channels: 'Channels' }
+          return (
+            <Button
+              key={tab}
+              onClick={() => setSpecialTab(tab)}
+              variant="ghost"
+              size="sm"
+              className={`rounded-t-md rounded-b-none relative ${
+                specialTab === tab
+                  ? 'bg-card text-foreground border border-border border-b-card -mb-px'
+                  : ''
+              }`}
+            >
+              {labels[tab]}
+            </Button>
+          )
+        })}
       </div>
+
+      {specialTab === 'debug' && <div className="flex-1 overflow-auto"><DebugPanel /></div>}
+      {specialTab === 'audit' && <div className="flex-1 overflow-auto"><AuditTrailPanel /></div>}
+      {specialTab === 'users' && <div className="flex-1 overflow-auto"><UserManagementPanel /></div>}
+      {specialTab === 'nodes' && <div className="flex-1 overflow-auto"><NodesPanel /></div>}
+      {specialTab === 'gateway' && <div className="flex-1 overflow-auto"><MultiGatewayPanel /></div>}
+      {specialTab === 'webhooks' && <div className="flex-1 overflow-auto"><WebhookPanel /></div>}
+      {specialTab === 'github' && <div className="flex-1 overflow-auto"><GitHubSyncPanel /></div>}
+      {specialTab === 'channels' && <div className="flex-1 overflow-auto"><ChannelsPanel /></div>}
+
+      {!specialTab && <>
 
       {/* Security: API Key Management */}
       {activeCategory === 'security' && (
@@ -997,6 +1036,8 @@ export function SettingsPanel() {
           </Button>
         </div>
       )}
+
+      </>}
     </div>
   )
 }

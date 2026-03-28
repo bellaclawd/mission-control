@@ -2776,7 +2776,7 @@ export function ModelsTab({ agent }: { agent: Agent }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [availableModels, setAvailableModels] = useState<Array<{ alias: string }>>([])
+  const [availableModels, setAvailableModels] = useState<Array<{ alias: string; name?: string; provider?: string; description?: string; costPer1k?: number }>>([])
 
   useEffect(() => {
     fetch('/api/status?action=models')
@@ -2786,6 +2786,30 @@ export function ModelsTab({ agent }: { agent: Agent }) {
       })
       .catch(() => {})
   }, [])
+
+  // Group models by provider
+  const modelsByProvider = availableModels.reduce((acc, m) => {
+    const p = m.provider || 'other'
+    if (!acc[p]) acc[p] = []
+    acc[p].push(m)
+    return acc
+  }, {} as Record<string, typeof availableModels>)
+
+  const providerLabels: Record<string, string> = {
+    anthropic: '🔵 Anthropic',
+    openai: '🟢 OpenAI',
+    ollama: '🟠 Ollama (Local)',
+    groq: '⚡ Groq',
+    google: '🔴 Google',
+    moonshot: '🌙 Moonshot',
+    venice: '🎭 Venice',
+    minimax: '🟣 MiniMax',
+    other: '⚙️ Other',
+  }
+
+  const getModelInfo = (alias: string) => availableModels.find(m => m.alias === alias || m.name === alias)
+
+  const currentModelInfo = getModelInfo(primary)
 
   const isDirty = primary !== modelPrimary || JSON.stringify(fallbacks) !== JSON.stringify(modelFallbacks)
 
@@ -2862,18 +2886,51 @@ export function ModelsTab({ agent }: { agent: Agent }) {
       )}
 
       {/* Primary model */}
-      <div className="bg-surface-1/50 rounded-lg p-4">
-        <h5 className="text-sm font-medium text-foreground mb-2">{t('primaryModel')}</h5>
+      <div className="bg-surface-1/50 rounded-lg p-4 space-y-3">
+        <h5 className="text-sm font-medium text-foreground">{t('primaryModel')}</h5>
+
+        {/* Current model info card */}
+        {currentModelInfo && (
+          <div className="flex items-center gap-3 bg-surface-1 border border-border/60 rounded-lg px-3 py-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">{currentModelInfo.alias}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary/80 border border-primary/20 uppercase tracking-wide">
+                  {currentModelInfo.provider}
+                </span>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">{currentModelInfo.name}</div>
+              {currentModelInfo.description && (
+                <div className="text-[11px] text-muted-foreground/70 mt-0.5">{currentModelInfo.description}</div>
+              )}
+            </div>
+            {typeof currentModelInfo.costPer1k === 'number' && (
+              <div className="text-right shrink-0">
+                <div className="text-xs font-medium text-foreground">
+                  {currentModelInfo.costPer1k === 0 ? 'Free' : `$${currentModelInfo.costPer1k}/1K`}
+                </div>
+                <div className="text-[10px] text-muted-foreground">tokens</div>
+              </div>
+            )}
+          </div>
+        )}
+
         <select
           value={primary}
           onChange={(e) => setPrimary(e.target.value)}
-          className="w-full bg-surface-1 text-foreground border border-border rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full bg-surface-1 text-foreground border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
         >
           <option value="">{t('default')}</option>
-          {availableModels.map(m => (
-            <option key={m.alias} value={m.alias}>{m.alias}</option>
+          {Object.entries(modelsByProvider).map(([provider, models]) => (
+            <optgroup key={provider} label={providerLabels[provider] || provider}>
+              {models.map(m => (
+                <option key={m.alias} value={m.name || m.alias}>
+                  {m.alias}{m.description ? ` — ${m.description}` : ''}{typeof m.costPer1k === 'number' ? (m.costPer1k === 0 ? ' (free)' : ` ($${m.costPer1k}/1K)`) : ''}
+                </option>
+              ))}
+            </optgroup>
           ))}
-          {primary && !availableModels.find(m => m.alias === primary) && (
+          {primary && !availableModels.find(m => m.alias === primary || m.name === primary) && (
             <option value={primary}>{primary}</option>
           )}
         </select>
@@ -2893,7 +2950,10 @@ export function ModelsTab({ agent }: { agent: Agent }) {
             {fallbacks.map((fb, i) => (
               <div key={`${fb}-${i}`} className="flex items-center gap-2 bg-surface-1 rounded px-3 py-1.5">
                 <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
-                <span className="flex-1 font-mono text-xs text-foreground">{fb}</span>
+                <span className="flex-1 font-mono text-xs text-foreground">
+                  {fb}
+                  {(() => { const info = getModelInfo(fb); return info?.provider ? <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-surface-2 text-muted-foreground">{info.provider}</span> : null })()}
+                </span>
                 <button
                   onClick={() => moveFallback(i, -1)}
                   disabled={i === 0}

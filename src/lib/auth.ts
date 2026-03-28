@@ -97,7 +97,7 @@ interface UserQueryRow {
 }
 
 // Session management
-const SESSION_DURATION = 7 * 24 * 60 * 60 // 7 days in seconds
+const SESSION_DURATION = 365 * 24 * 60 * 60 // 1 year in seconds
 
 function getDefaultWorkspaceContext(): { workspaceId: number; tenantId: number } {
   try {

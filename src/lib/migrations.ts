@@ -1285,6 +1285,28 @@ const migrations: Migration[] = [
       }
     }
   }
+  ,{
+    id: '044_checklist',
+    up(db: Database.Database) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS checklist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          title TEXT NOT NULL,
+          notes TEXT,
+          done INTEGER NOT NULL DEFAULT 0,
+          done_at INTEGER,
+          priority TEXT NOT NULL DEFAULT 'normal',
+          tags TEXT,
+          created_by TEXT NOT NULL DEFAULT 'bella',
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_checklist_workspace ON checklist(workspace_id)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_checklist_done ON checklist(done)`)
+    }
+  }
 ]
 
 export function runMigrations(db: Database.Database) {

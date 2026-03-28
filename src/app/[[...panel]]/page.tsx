@@ -12,6 +12,7 @@ import { MemoryBrowserPanel } from '@/components/panels/memory-browser-panel'
 import { CostTrackerPanel } from '@/components/panels/cost-tracker-panel'
 import { TaskBoardPanel } from '@/components/panels/task-board-panel'
 import { ActivityFeedPanel } from '@/components/panels/activity-feed-panel'
+import { ActivityLogsPanel } from '@/components/panels/activity-logs-panel'
 import { AgentSquadPanelPhase3 } from '@/components/panels/agent-squad-panel-phase3'
 import { AgentCommsPanel } from '@/components/panels/agent-comms-panel'
 import { StandupPanel } from '@/components/panels/standup-panel'
@@ -29,6 +30,8 @@ import { SuperAdminPanel } from '@/components/panels/super-admin-panel'
 import { OfficePanel } from '@/components/panels/office-panel'
 import { GitHubSyncPanel } from '@/components/panels/github-sync-panel'
 import { SkillsPanel } from '@/components/panels/skills-panel'
+import { FilesPanel } from '@/components/panels/files-panel'
+import { ChecklistPanel } from '@/components/panels/checklist-panel'
 import { LocalAgentsDocPanel } from '@/components/panels/local-agents-doc-panel'
 import { ChannelsPanel } from '@/components/panels/channels-panel'
 import { DebugPanel } from '@/components/panels/debug-panel'
@@ -505,6 +508,8 @@ function ContentRouter({ tab }: { tab: string }) {
       )
     case 'tasks':
       return <TaskBoardPanel />
+    case 'projects':
+      return <TaskBoardPanel />
     case 'agents':
       return (
         <>
@@ -520,7 +525,7 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'sessions':
       return <ChatPagePanel />
     case 'logs':
-      return <LogViewerPanel />
+      return <ActivityLogsPanel />
     case 'cron':
       return <CronManagementPanel />
     case 'memory':
@@ -533,7 +538,7 @@ function ContentRouter({ tab }: { tab: string }) {
       return <UserManagementPanel />
     case 'history':
     case 'activity':
-      return <ActivityFeedPanel />
+      return <ActivityLogsPanel />
     case 'audit':
       return <AuditTrailPanel />
     case 'webhooks':
@@ -560,6 +565,10 @@ function ContentRouter({ tab }: { tab: string }) {
       return <SystemMonitorPanel />
     case 'skills':
       return <SkillsPanel />
+    case 'files':
+      return <FilesPanel />
+    case 'checklist':
+      return <ChecklistPanel />
     case 'channels':
       if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <ChannelsPanel />

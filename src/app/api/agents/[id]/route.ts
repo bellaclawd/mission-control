@@ -91,7 +91,9 @@ export async function PUT(
       gateway_config &&
       (write_to_gateway === undefined || write_to_gateway === null || write_to_gateway === true)
     )
-    const openclawId = existingConfig.openclawId || agent.name.toLowerCase().replace(/\s+/g, '-')
+    // Map agent name to openclaw.json agents.list id
+    const NAME_TO_OPENCLAW_ID: Record<string, string> = { bella: 'main', clyde: 'clyde', ash: 'ash' }
+    const openclawId = existingConfig.openclawId || NAME_TO_OPENCLAW_ID[agent.name.toLowerCase()] || agent.name.toLowerCase().replace(/\s+/g, '-')
     const getWriteBackPayload = (source: Record<string, any>) => {
       const writeBack: any = { id: openclawId }
       if (source.model) writeBack.model = source.model

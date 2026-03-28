@@ -99,7 +99,7 @@ export function OpenClawDoctorBanner() {
     }
   }
 
-  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+  const TWENTY_FOUR_HOURS = 365 * 24 * 60 * 60 * 1000 // 1 year
   const dismissed = doctorDismissedAt != null && (Date.now() - doctorDismissedAt) < TWENTY_FOUR_HOURS
 
   if (loading || dismissed || !doctor || doctor.healthy) return null
