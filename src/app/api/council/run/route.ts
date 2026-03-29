@@ -15,21 +15,28 @@ const MODEL_CONFIG: Record<string, { apiKey: () => string | undefined; baseUrl: 
     baseUrl: 'https://api.anthropic.com',
     model: 'claude-opus-4-5',
     label: 'Claude Opus',
-    color: '#f97316',
+    color: '#ea580c',
   },
-  'gpt-4o': {
-    apiKey: () => process.env.OPENAI_API_KEY,
-    baseUrl: 'https://api.openai.com',
-    model: 'gpt-4o',
-    label: 'GPT-4o',
-    color: '#10b981',
+  'claude-haiku': {
+    apiKey: () => process.env.ANTHROPIC_API_KEY,
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-haiku-4-5',
+    label: 'Claude Haiku',
+    color: '#fb923c',
   },
-  'gpt-4o-mini': {
-    apiKey: () => process.env.OPENAI_API_KEY,
-    baseUrl: 'https://api.openai.com',
-    model: 'gpt-4o-mini',
-    label: 'GPT-4o Mini',
-    color: '#10b981',
+  'gemini-2.5-pro': {
+    apiKey: () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+    baseUrl: 'https://generativelanguage.googleapis.com',
+    model: 'gemini-2.5-pro-preview-03-25',
+    label: 'Gemini 2.5 Pro',
+    color: '#3b82f6',
+  },
+  'gemini-2.0-flash': {
+    apiKey: () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+    baseUrl: 'https://generativelanguage.googleapis.com',
+    model: 'gemini-2.0-flash',
+    label: 'Gemini Flash',
+    color: '#60a5fa',
   },
 }
 
@@ -79,6 +86,32 @@ async function callOpenAI(model: string, systemPrompt: string, messages: Array<{
   return data.choices?.[0]?.message?.content || ''
 }
 
+async function callGemini(model: string, systemPrompt: string, messages: Array<{ role: string; content: string }>, apiKey: string): Promise<string> {
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }))
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        generationConfig: { maxOutputTokens: 1024 },
+      }),
+      signal: AbortSignal.timeout(60000),
+    }
+  )
+  if (!res.ok) {
+    const err = await res.text().catch(() => 'unknown error')
+    throw new Error(`Gemini API error ${res.status}: ${err.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+}
+
 async function callModel(modelId: string, systemPrompt: string, messages: Array<{ role: string; content: string }>): Promise<string> {
   const cfg = MODEL_CONFIG[modelId]
   if (!cfg) throw new Error(`Unknown model: ${modelId}`)
@@ -87,6 +120,8 @@ async function callModel(modelId: string, systemPrompt: string, messages: Array<
 
   if (cfg.baseUrl.includes('anthropic')) {
     return callAnthropic(cfg.model, systemPrompt, messages, apiKey)
+  } else if (cfg.baseUrl.includes('generativelanguage')) {
+    return callGemini(cfg.model, systemPrompt, messages, apiKey)
   } else {
     return callOpenAI(cfg.model, systemPrompt, messages, apiKey)
   }

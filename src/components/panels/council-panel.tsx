@@ -5,8 +5,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 const AVAILABLE_MODELS = [
   { id: 'claude-sonnet', label: 'Claude Sonnet', color: '#f97316', provider: 'Anthropic' },
   { id: 'claude-opus', label: 'Claude Opus', color: '#ea580c', provider: 'Anthropic' },
-  { id: 'gpt-4o', label: 'GPT-4o', color: '#10b981', provider: 'OpenAI' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', color: '#059669', provider: 'OpenAI' },
+  { id: 'claude-haiku', label: 'Claude Haiku', color: '#fb923c', provider: 'Anthropic' },
+  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', color: '#3b82f6', provider: 'Google' },
+  { id: 'gemini-2.0-flash', label: 'Gemini Flash', color: '#60a5fa', provider: 'Google' },
 ]
 
 interface DebateEntry {
@@ -96,7 +97,7 @@ function ThinkingIndicator({ label }: { label: string }) {
 
 export function CouncilPanel() {
   const [topic, setTopic] = useState('')
-  const [selectedModels, setSelectedModels] = useState(['claude-sonnet', 'gpt-4o'])
+  const [selectedModels, setSelectedModels] = useState(['claude-sonnet', 'claude-opus'])
   const [rounds, setRounds] = useState(3)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [activeSession, setActiveSession] = useState<SessionDetail | null>(null)
