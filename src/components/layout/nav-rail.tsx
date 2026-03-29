@@ -32,6 +32,7 @@ const navGroups: NavGroup[] = [
       { id: 'agents', label: 'Team', icon: <img src="/icons/team.png" alt="" className="w-4 h-4" />, priority: true, essential: true },
       
       { id: 'projects', label: 'Projects', icon: <img src="/icons/projects.png" alt="" className="w-4 h-4" />, priority: true, essential: true },
+      { id: 'skool', label: 'Skool', icon: <span className="text-base leading-none">🎓</span>, priority: false },
       { id: 'skills', label: 'Skills Hub', icon: <img src="/icons/juggler.png" alt="" className="w-4 h-4" />, priority: false },
       { id: 'memory', label: 'Memory', icon: <span className="text-base leading-none">🧠</span>, priority: false },
       { id: 'files', label: 'Files', icon: <span className="text-base leading-none">📁</span>, priority: false },

@@ -36,6 +36,7 @@ import { WhatsAppAlertsPanel } from '@/components/panels/whatsapp-alerts-panel'
 import { CommunicationPanel } from '@/components/panels/communication-panel'
 import { CouncilPanel } from '@/components/panels/council-panel'
 import { ChecklistPanel } from '@/components/panels/checklist-panel'
+import { SkoolPanel } from '@/components/panels/skool-panel'
 import { LocalAgentsDocPanel } from '@/components/panels/local-agents-doc-panel'
 import { ChannelsPanel } from '@/components/panels/channels-panel'
 import { DebugPanel } from '@/components/panels/debug-panel'
@@ -585,6 +586,8 @@ function ContentRouter({ tab }: { tab: string }) {
       return <CouncilPanel />
     case 'checklist':
       return <ChecklistPanel />
+    case 'skool':
+      return <SkoolPanel />
     case 'channels':
       if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <ChannelsPanel />
