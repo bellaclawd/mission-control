@@ -46,6 +46,10 @@ import { SystemMonitorPanel } from '@/components/panels/system-monitor-panel'
 import { ChatPagePanel } from '@/components/panels/chat-page-panel'
 import { ChatPanel } from '@/components/chat/chat-panel'
 import { getPluginPanel } from '@/lib/plugins'
+import { loadPlugins } from '@/lib/plugin-loader'
+
+// Load plugins at module init time (runs once when the module is first imported)
+loadPlugins()
 import { shouldRedirectDashboardToHttps } from '@/lib/browser-security'
 import { useTranslations } from 'next-intl'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -412,7 +416,7 @@ export default function Home() {
           </div>
           <footer className="px-4 pb-4 pt-2">
             <p className="text-2xs text-muted-foreground/50 text-center">
-              {tc('builtWithCareBy')} <a href="https://x.com/nyk_builderz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground/70 hover:text-primary transition-colors duration-200">nyk</a>.
+              Mission Control
             </p>
           </footer>
         </main>

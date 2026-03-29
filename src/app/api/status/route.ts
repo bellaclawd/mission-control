@@ -197,7 +197,7 @@ function getDbStats(workspaceId: number) {
       const { join, dirname } = require('path')
       const backupDir = join(dirname(config.dbPath), 'backups')
       const files = readdirSync(backupDir)
-        .filter((f: string) => f.endsWith('.db'))
+        .filter((f: string) => f.endsWith('.db') || f.endsWith('.tar.gz'))
         .map((f: string) => {
           const stat = statSync(join(backupDir, f))
           return { name: f, size: stat.size, mtime: stat.mtimeMs }

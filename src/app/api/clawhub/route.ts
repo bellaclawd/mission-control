@@ -39,27 +39,40 @@ function extractSkillMeta(skillDir: string): { description?: string; emoji?: str
   if (!existsSync(mdPath)) return {}
   try {
     const content = readFileSync(mdPath, 'utf-8')
-    const lines = content.split('\n').map(l => l.trim()).filter(Boolean)
 
     let description: string | undefined
     let emoji: string | undefined
     let homepage: string | undefined
 
-    // Look for description in first non-heading line
-    for (const line of lines) {
-      if (!line.startsWith('#') && !line.startsWith('---')) {
-        description = line.length > 220 ? line.slice(0, 217) + '...' : line
-        break
+    // Parse YAML frontmatter if present
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/)
+    if (fmMatch) {
+      const fm = fmMatch[1]
+      // Extract description from frontmatter
+      const descMatch = fm.match(/^description:\s*(.+)$/m)
+      if (descMatch) {
+        const d = descMatch[1].trim()
+        description = d.length > 220 ? d.slice(0, 217) + '...' : d
       }
+      // Extract homepage
+      const hpMatch = fm.match(/^homepage:\s*(.+)$/m)
+      if (hpMatch) homepage = hpMatch[1].trim()
+      // Extract emoji from metadata.openclaw.emoji
+      const emojiMatch = fm.match(/"emoji":\s*"([^"]+)"/)
+      if (emojiMatch) emoji = emojiMatch[1]
     }
 
-    // Look for emoji in heading
-    const headingMatch = content.match(/^#\s*([\p{Emoji}])/mu)
-    if (headingMatch) emoji = headingMatch[1]
-
-    // Look for homepage in content
-    const homepageMatch = content.match(/homepage[:\s]+([https://]\S+)/i)
-    if (homepageMatch) homepage = homepageMatch[1]
+    // Fallback: description from first non-heading, non-frontmatter line
+    if (!description) {
+      const bodyStart = fmMatch ? content.indexOf('---', 4) + 4 : 0
+      const bodyLines = content.slice(bodyStart).split('\n').map(l => l.trim()).filter(Boolean)
+      for (const line of bodyLines) {
+        if (!line.startsWith('#') && !line.startsWith('---') && !line.startsWith('```')) {
+          description = line.length > 220 ? line.slice(0, 217) + '...' : line
+          break
+        }
+      }
+    }
 
     return { description, emoji, homepage }
   } catch { return {} }

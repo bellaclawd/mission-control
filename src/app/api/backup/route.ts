@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const files = readdirSync(BACKUP_DIR)
-      .filter(f => f.endsWith('.db'))
+      .filter(f => f.endsWith('.db') || f.endsWith('.tar.gz'))
       .map(f => {
         const stat = statSync(join(BACKUP_DIR, f))
         return {
@@ -51,43 +51,137 @@ export async function POST(request: NextRequest) {
 
   const target = request.nextUrl.searchParams.get('target')
 
-  // Gateway state backup via `openclaw backup create`
+  // Full system backup — OpenClaw + MC + all services
   if (target === 'gateway') {
     ensureDirExists(BACKUP_DIR)
     const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
     try {
-      let stdout: string
-      let stderr: string
-      try {
-        const result = await runOpenClaw(['backup', 'create', '--output', BACKUP_DIR], { timeoutMs: 60000 })
-        stdout = result.stdout
-        stderr = result.stderr
-      } catch (error: any) {
-        // openclaw backup may exit non-zero despite success — check output
-        stdout = error.stdout || ''
-        stderr = error.stderr || ''
-        const combined = `${stdout}\n${stderr}`
-        if (!combined.includes('Created')) {
-          const message = stderr || error.message || 'Unknown error'
-          logger.error({ err: error }, 'Gateway backup failed')
-          return NextResponse.json({ error: `Gateway backup failed: ${message}` }, { status: 500 })
-        }
-      }
-
-      const output = (stdout || stderr).trim()
+      const { execSync } = await import('child_process')
+      const { homedir } = await import('os')
+      const scriptPath = join(homedir(), 'full-backup.sh')
+      const stdout = execSync(`bash "${scriptPath}" "${BACKUP_DIR}"`, {
+        encoding: 'utf8',
+        timeout: 300000, // 5 min max
+        env: {
+          ...process.env,
+          HOME: homedir(),
+          PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
+        },
+      }).trim()
 
       logAuditEvent({
-        action: 'openclaw.backup',
+        action: 'full.backup',
         actor: auth.user.username,
         actor_id: auth.user.id,
-        detail: { output },
+        detail: { output: stdout },
         ip_address: ipAddress,
       })
 
-      return NextResponse.json({ success: true, output })
+      return NextResponse.json({ success: true, output: stdout })
     } catch (error: any) {
-      logger.error({ err: error }, 'Gateway backup failed')
-      return NextResponse.json({ error: `Gateway backup failed: ${error.message}` }, { status: 500 })
+      const out = (error.stdout || '') + (error.stderr || '') || error.message
+      logger.error({ err: error }, 'Full backup failed')
+      return NextResponse.json({ error: `Backup failed: ${out.slice(0, 200)}` }, { status: 500 })
+    }
+  }
+
+  // Google Drive backup: create archive then upload via gog CLI
+  if (target === 'drive') {
+    ensureDirExists(BACKUP_DIR)
+    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    try {
+      // Step 1: Create full backup first
+      const { execSync: execSyncDrive } = await import('child_process')
+      const { homedir: getHome } = await import('os')
+      const home = getHome()
+      let archivePath = ''
+      try {
+        const scriptPath = join(home, 'full-backup.sh')
+        execSyncDrive(`bash "${scriptPath}" "${BACKUP_DIR}"`, {
+          encoding: 'utf8',
+          timeout: 300000,
+          env: { ...process.env, HOME: home, PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}` },
+        })
+        archivePath = execSyncDrive(`ls -t "${BACKUP_DIR}"/full-backup-*.tar.gz 2>/dev/null | head -1`, { encoding: 'utf8' }).trim()
+      } catch (err: any) {
+        // Fallback: find newest archive
+        archivePath = execSyncDrive(`ls -t "${BACKUP_DIR}"/*.tar.gz 2>/dev/null | head -1`, { encoding: 'utf8' }).trim()
+        if (!archivePath) {
+          return NextResponse.json({ error: `Backup creation failed: ${err.message}` }, { status: 500 })
+        }
+      }
+
+      if (!archivePath) {
+        return NextResponse.json({ error: 'No backup archive found to upload' }, { status: 500 })
+      }
+
+      // Step 2: Upload to Google Drive via gog CLI
+      const gogBin = '/opt/homebrew/bin/gog'
+      const driveFolderId = '15EAnqa_wI34VeweXw-Dh7HXt30NC1qlY' // "OpenClaw Backups" folder
+      const uploadOutput = execSyncDrive(
+        `"${gogBin}" drive upload "${archivePath}" --parent ${driveFolderId} --account bellaclaw@gmail.com --json 2>&1`,
+        {
+          encoding: 'utf8',
+          timeout: 120000,
+          env: {
+            ...process.env,
+            PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
+          },
+        }
+      ).trim()
+
+      const filename = archivePath.split('/').pop() || 'backup'
+
+      // Rotate: keep max 7 backups on Drive, delete oldest
+      try {
+        const listOut = execSyncDrive(
+          `"${gogBin}" drive ls --parent ${driveFolderId} --json 2>&1`,
+          { encoding: 'utf8', timeout: 15000, env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}` } }
+        )
+        const listData = JSON.parse(listOut)
+        const files = (listData.files || listData || [])
+          .filter((f: any) => f.name?.includes('backup'))
+          .sort((a: any, b: any) => (a.createdTime || a.name || '').localeCompare(b.createdTime || b.name || ''))
+        
+        const MAX_DRIVE_BACKUPS = 7
+        if (files.length > MAX_DRIVE_BACKUPS) {
+          const toDelete = files.slice(0, files.length - MAX_DRIVE_BACKUPS)
+          for (const old of toDelete) {
+            try {
+              execSyncDrive(
+                `"${gogBin}" drive delete "${old.id}" --force 2>&1`,
+                { encoding: 'utf8', timeout: 10000, env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}` } }
+              )
+            } catch { /* best effort */ }
+          }
+        }
+      } catch { /* rotation is best-effort */ }
+
+      // Also rotate local backups — keep max 7
+      try {
+        const localFiles = readdirSync(BACKUP_DIR)
+          .filter(f => f.endsWith('.tar.gz'))
+          .map(f => ({ name: f, mtime: statSync(join(BACKUP_DIR, f)).mtimeMs }))
+          .sort((a, b) => a.mtime - b.mtime)
+        if (localFiles.length > 7) {
+          for (const old of localFiles.slice(0, localFiles.length - 7)) {
+            try { unlinkSync(join(BACKUP_DIR, old.name)) } catch { /* best effort */ }
+          }
+        }
+      } catch { /* best effort */ }
+
+      logAuditEvent({
+        action: 'openclaw.backup.drive',
+        actor: auth.user.username,
+        actor_id: auth.user.id,
+        detail: { filename, uploadOutput },
+        ip_address: ipAddress,
+      })
+
+      return NextResponse.json({ success: true, message: `Backup "${filename}" uploaded to Google Drive`, filename, output: uploadOutput })
+    } catch (error: any) {
+      logger.error({ err: error }, 'Google Drive backup failed')
+      return NextResponse.json({ error: `Drive backup failed: ${error.message}` }, { status: 500 })
     }
   }
 

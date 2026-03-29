@@ -1,23 +1,29 @@
 # Dependencies
 node_modules/
 
-# Next.js
+# Next.js build output
 .next/
 out/
-
-# Production
 build/
 dist/
+
+# Environment files (contain secrets — copy .env.example to .env.local to configure)
+.env
+.env.local
+.env.*.local
+
+# Database & runtime data (generated on first run)
+.data/
 
 # Misc
 .DS_Store
 *.pem
-.env*.local
+aegis/
 
-# npm (project uses pnpm)
+# npm lockfile (project uses pnpm)
 package-lock.json
 
-# Debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -25,12 +31,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
-# TypeScript
+# TypeScript build info
 *.tsbuildinfo
 next-env.d.ts
-.env
-.data/
-aegis/
 
 # Playwright
 test-results/

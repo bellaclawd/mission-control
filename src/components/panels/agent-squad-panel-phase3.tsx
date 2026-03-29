@@ -1136,7 +1136,7 @@ const HIERARCHY: Record<string, { title: string; reportsTo: string | null; emoji
   Bella: { title: 'CEO', reportsTo: null, emoji: '👑' },
   Ash:   { title: 'VP of Pokémon', reportsTo: 'Bella', emoji: '🎮' },
   Clyde: { title: 'VP of Questions', reportsTo: 'Bella', emoji: '🤙' },
-  Stan:  { title: 'VP of Websites', reportsTo: 'Bella', emoji: '🌐' },
+  Stan:  { title: 'VP of Technology', reportsTo: 'Bella', emoji: '🌐' },
 }
 
 // Agents whose names suggest they are transient spawned subagents — hide from org chart

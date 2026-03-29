@@ -7,9 +7,8 @@
  * Dynamic MC_PLUGINS env-based loading can be added later.
  */
 
+import { initPokemonPlugin } from '@/plugins/pokemon'
+
 export function loadPlugins(): void {
-  // Plugins register via direct import + init() call.
-  // Example:
-  //   import { initHyperbrowserPlugin } from '@/plugins/hyperbrowser'
-  //   initHyperbrowserPlugin()
+  initPokemonPlugin()
 }

@@ -29,25 +29,25 @@ const navGroups: NavGroup[] = [
     id: 'core',
     items: [
       { id: 'overview', label: 'Overview', icon: <OverviewIcon />, priority: true, essential: true },
-      { id: 'agents', label: 'Team', icon: <AgentsIcon />, priority: true, essential: true },
+      { id: 'agents', label: 'Team', icon: <img src="/icons/team.png" alt="" className="w-4 h-4" />, priority: true, essential: true },
       
-      { id: 'projects', label: 'Projects', icon: <ProjectsIcon />, priority: true, essential: true },
-      { id: 'skills', label: 'Skills Hub', icon: <SkillsIcon />, priority: false },
-      { id: 'memory', label: 'Memory', icon: <MemoryIcon />, priority: false },
-      { id: 'files', label: 'Files', icon: <FilesIcon />, priority: false },
-      { id: 'checklist', label: 'Checklist', icon: <ChecklistIcon />, priority: false },
-      { id: 'council', label: 'Council', icon: <CouncilIcon />, priority: false },
-      { id: 'communication', label: 'Communication', icon: <WhatsAppIcon />, priority: false },
+      { id: 'projects', label: 'Projects', icon: <img src="/icons/projects.png" alt="" className="w-4 h-4" />, priority: true, essential: true },
+      { id: 'skills', label: 'Skills Hub', icon: <img src="/icons/juggler.png" alt="" className="w-4 h-4" />, priority: false },
+      { id: 'memory', label: 'Memory', icon: <span className="text-base leading-none">🧠</span>, priority: false },
+      { id: 'files', label: 'Files', icon: <span className="text-base leading-none">📁</span>, priority: false },
+      { id: 'checklist', label: 'Checklist', icon: <img src="/icons/checklist.png" alt="" className="w-4 h-4" />, priority: false },
+      { id: 'council', label: 'Council', icon: <img src="/icons/council.png" alt="" className="w-4 h-4" />, priority: false },
+      { id: 'communication', label: 'Communication', icon: <img src="/icons/whatsapp.png" alt="" className="w-4 h-4" />, priority: false },
     ],
   },
   {
     id: 'observe',
     label: 'OBSERVE',
     items: [
-      { id: 'activity', label: 'Activity & Logs', icon: <ActivityIcon />, priority: true, essential: true },
-      { id: 'cost-tracker', label: 'Usage Tracker', icon: <TokensIcon />, priority: false },
+      { id: 'activity', label: 'Activity & Logs', icon: <img src="/icons/activity.png" alt="" className="w-4 h-4" />, priority: true, essential: true },
+      { id: 'cost-tracker', label: 'Usage Tracker', icon: <img src="/icons/cost-tracker.png" alt="" className="w-4 h-4" />, priority: false },
 
-      { id: 'exec-approvals', label: 'Approvals', icon: <ApprovalsIcon />, priority: false },
+      { id: 'exec-approvals', label: 'Approvals', icon: <img src="/icons/approvals.png" alt="" className="w-4 h-4" />, priority: false },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
     ],
@@ -184,7 +184,7 @@ export function NavRail() {
       .map(pi => ({
         id: pi.id,
         label: pi.label,
-        icon: pi.icon ? <span>{pi.icon}</span> : <PluginIcon />,
+        icon: pi.icon ? (pi.icon.startsWith('/') ? <img src={pi.icon} alt="" className="w-4 h-4" /> : <span>{pi.icon}</span>) : <PluginIcon />,
         priority: false,
       } as NavItem))
     const items = translateItems(pluginItems.length > 0 ? [...g.items, ...pluginItems] : g.items)
@@ -394,35 +394,7 @@ export function NavRail() {
           ))}
         </div>
 
-        {/* Promo banners */}
-        {sidebarExpanded && (
-          <div className="px-2 pb-2 space-y-2 shrink-0">
-            <a
-              href="https://x.com/nyk_builderz/status/2022996371922649192?s=20"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-lg border border-border/50 bg-surface-1 hover:bg-surface-2 hover:border-primary/30 transition-all duration-200 p-2 group"
-            >
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-2xs font-semibold text-foreground group-hover:text-primary transition-colors">xint</span>
-                <span className="text-[9px] px-1 py-px rounded bg-primary/15 text-primary font-mono">CLI</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground/70 leading-snug">X power tools for agents.</p>
-            </a>
-            <a
-              href="https://builderz.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-lg border border-void-cyan/20 bg-gradient-to-br from-void-cyan/5 to-transparent hover:from-void-cyan/10 hover:border-void-cyan/40 transition-all duration-200 p-2 group"
-            >
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-2xs font-bold text-foreground group-hover:text-void-cyan transition-colors">builderz</span>
-                <span className="text-[9px] px-1 py-px rounded bg-void-cyan/15 text-void-cyan">.dev</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground/70 leading-snug">AI-native dev shop · Solana experts.</p>
-            </a>
-          </div>
-        )}
+
 
         {/* Context switcher (profile-style, bottom of sidebar) */}
         <ContextSwitcher
@@ -1270,9 +1242,13 @@ function CronIcon() {
 function MemoryIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <ellipse cx="8" cy="8" rx="6" ry="3" />
-      <path d="M2 8v3c0 1.7 2.7 3 6 3s6-1.3 6-3V8" />
-      <path d="M2 5v3c0 1.7 2.7 3 6 3s6-1.3 6-3V5" />
+      <circle cx="6" cy="4" r="2" />
+      <circle cx="11" cy="4" r="2" />
+      <circle cx="4" cy="8" r="2" />
+      <circle cx="12" cy="8" r="2" />
+      <circle cx="6" cy="12" r="2" />
+      <circle cx="11" cy="12" r="2" />
+      <line x1="8" y1="3" x2="8" y2="14" />
     </svg>
   )
 }
@@ -1524,11 +1500,9 @@ function WhatsAppIcon() {
 
 function FilesIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5L9 1z"/>
-      <polyline points="9 1 9 5 13 5"/>
-      <line x1="5" y1="8" x2="11" y2="8"/>
-      <line x1="5" y1="11" x2="11" y2="11"/>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 4h5l1.5-2H14v11H2z" />
+      <path d="M2 4v9h12" />
     </svg>
   )
 }

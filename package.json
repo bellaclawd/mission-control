@@ -1,7 +1,7 @@
 {
   "name": "mission-control",
   "version": "2.0.1",
-  "description": "OpenClaw Mission Control — open-source agent orchestration dashboard",
+  "description": "OpenClaw Mission Control \u2014 open-source agent orchestration dashboard",
   "scripts": {
     "verify:node": "node scripts/check-node-version.mjs",
     "dev": "pnpm run verify:node && next dev --hostname 127.0.0.1 --port ${PORT:-3000}",
@@ -77,11 +77,11 @@
     "dashboard",
     "nextjs"
   ],
-  "author": "Builderz Labs",
+  "author": "Sev",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/builderz-labs/mission-control.git"
+    "url": "https://github.com/bellaclawd/mission-control.git"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

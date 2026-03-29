@@ -6,7 +6,7 @@ import { getDatabase } from '@/lib/db'
 import { getAgentWorkspaceCandidates } from '@/lib/agent-workspace'
 
 // Dirs to skip
-const SKIP_DIRS = new Set(['.git', 'node_modules', '.obsidian', '.openclaw'])
+const SKIP_DIRS = new Set(['.git', 'node_modules', '.obsidian', '.openclaw', 'media-inbound'])
 
 // Files to skip
 const SKIP_FILENAMES = new Set([

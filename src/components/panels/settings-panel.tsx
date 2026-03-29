@@ -158,6 +158,7 @@ export function SettingsPanel() {
   // Backup state
   const [mcBackupRunning, setMcBackupRunning] = useState(false)
   const [gwBackupRunning, setGwBackupRunning] = useState(false)
+  const [driveBackupRunning, setDriveBackupRunning] = useState(false)
 
   const showFeedback = (ok: boolean, text: string) => {
     setFeedback({ ok, text })
@@ -533,6 +534,30 @@ export function SettingsPanel() {
               }}
             >
               {gwBackupRunning ? t('backingUp') : t('backupGatewayState')}
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              className="text-2xs"
+              disabled={driveBackupRunning}
+              onClick={async () => {
+                setDriveBackupRunning(true)
+                try {
+                  const res = await fetch('/api/backup?target=drive', { method: 'POST' })
+                  const data = await res.json()
+                  if (res.ok) {
+                    showFeedback(true, data.message || 'Backup uploaded to Google Drive')
+                  } else {
+                    showFeedback(false, data.error || 'Drive backup failed')
+                  }
+                } catch {
+                  showFeedback(false, 'Network error')
+                } finally {
+                  setDriveBackupRunning(false)
+                }
+              }}
+            >
+              {driveBackupRunning ? 'Uploading...' : '☁️ Google Drive Backup'}
             </Button>
           </div>
 
