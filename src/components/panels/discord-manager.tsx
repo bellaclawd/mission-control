@@ -213,7 +213,7 @@ function ChannelRow({ channelId, channelName, config, onChange, onRemove, guildI
             users={config.allowFrom || []}
             onAdd={uid => onChange({ ...config, allowFrom: [...(config.allowFrom || []), uid] })}
             onRemove={uid => onChange({ ...config, allowFrom: (config.allowFrom || []).filter(u => u !== uid) })}
-            placeholder="Discord user ID e.g. 290009433491111936"
+            placeholder="Discord user ID e.g. 123456789012345678"
             color="green"
             guildId={guildId}
           />

@@ -3,7 +3,9 @@ import { requireRole } from '@/lib/auth'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { readLimiter, mutationLimiter } from '@/lib/rate-limit'
 
-const CONFIG_PATH = '/Users/claw/pokemon-alerts/config.json'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+const CONFIG_PATH = process.env.WHATSAPP_ALERTS_CONFIG || join(homedir(), 'pokemon-alerts', 'config.json')
 const WA_BRIDGE = 'http://127.0.0.1:3002'
 
 function readConfig() {

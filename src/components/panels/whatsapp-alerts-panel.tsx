@@ -213,7 +213,7 @@ function EditModal({
               <div className="flex gap-2">
                 <input value={newTarget.id} onChange={e => setNewTarget(t => ({ ...t, id: e.target.value }))}
                   className="flex-1 bg-card border border-border rounded px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder={newTarget.type === 'contact' ? '14165799593@c.us' : '120363182351762750@g.us'} />
+                  placeholder={newTarget.type === 'contact' ? '1234567890@c.us' : '120363000000000000@g.us'} />
                 <button onClick={addTarget} className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90">Add</button>
               </div>
             </div>
