@@ -1133,10 +1133,12 @@ export default AgentSquadPanelPhase3
 // ─── Hierarchy config ─────────────────────────────────────────────────────────
 
 const HIERARCHY: Record<string, { title: string; reportsTo: string | null; emoji: string }> = {
-  Bella: { title: 'CEO', reportsTo: null, emoji: '👑' },
-  Ash:   { title: 'VP of Pokémon', reportsTo: 'Bella', emoji: '🎮' },
-  Clyde: { title: 'VP of Questions', reportsTo: 'Bella', emoji: '🤙' },
-  Stan:  { title: 'VP of Technology', reportsTo: 'Bella', emoji: '🌐' },
+  Bella:  { title: 'CEO', reportsTo: null, emoji: '👑' },
+  Ash:    { title: 'VP of Pokémon', reportsTo: 'Bella', emoji: '🎮' },
+  Clyde:  { title: 'VP of Questions', reportsTo: 'Bella', emoji: '🤙' },
+  Stan:   { title: 'VP of Technology', reportsTo: 'Bella', emoji: '🌐' },
+  Jarvis: { title: 'VP of Comms', reportsTo: 'Bella', emoji: '🤖' },
+  Kenny:  { title: 'Image Guy', reportsTo: 'Stan', emoji: '🎨' },
 }
 
 // Agents whose names suggest they are transient spawned subagents — hide from org chart

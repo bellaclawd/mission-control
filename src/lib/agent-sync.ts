@@ -28,6 +28,7 @@ interface OpenClawAgent {
     name?: string
     theme?: string
     emoji?: string
+    avatar?: string
   }
   subagents?: any
   sandbox?: {
@@ -63,12 +64,13 @@ export interface SyncDiff {
   onlyInMC: string[]
 }
 
-function parseIdentityFromFile(content: string): { name?: string; theme?: string; emoji?: string; content?: string } {
+function parseIdentityFromFile(content: string): { name?: string; theme?: string; emoji?: string; avatar?: string; content?: string } {
   if (!content.trim()) return {}
   const lines = content.split('\n').map((line) => line.trim()).filter(Boolean)
   let name: string | undefined
   let theme: string | undefined
   let emoji: string | undefined
+  let avatar: string | undefined
 
   for (const line of lines) {
     if (!name && line.startsWith('#')) {
@@ -90,12 +92,20 @@ function parseIdentityFromFile(content: string): { name?: string; theme?: string
         emoji = emojiMatch[1].trim()
       }
     }
+
+    if (!avatar) {
+      const avatarMatch = line.match(/^\*\*Avatar:\*\*\s*(.+)$/i) || line.match(/^avatar\s*:\s*(.+)$/i)
+      if (avatarMatch?.[1]) {
+        avatar = avatarMatch[1].trim()
+      }
+    }
   }
 
   return {
     ...(name ? { name } : {}),
     ...(theme ? { theme } : {}),
     ...(emoji ? { emoji } : {}),
+    ...(avatar ? { avatar } : {}),
     content: lines.slice(0, 8).join('\n'),
   }
 }
