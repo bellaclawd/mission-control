@@ -8,6 +8,8 @@ const AVAILABLE_MODELS = [
   { id: 'claude-haiku', label: 'Claude Haiku', color: '#fb923c', provider: 'Anthropic' },
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', color: '#3b82f6', provider: 'Google' },
   { id: 'gemini-2.0-flash', label: 'Gemini Flash', color: '#60a5fa', provider: 'Google' },
+  { id: 'gpt-4o', label: 'GPT-4o', color: '#10b981', provider: 'OpenAI' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', color: '#059669', provider: 'OpenAI' },
 ]
 
 interface DebateEntry {

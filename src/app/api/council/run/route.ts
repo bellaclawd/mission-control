@@ -38,6 +38,20 @@ const MODEL_CONFIG: Record<string, { apiKey: () => string | undefined; baseUrl: 
     label: 'Gemini Flash',
     color: '#60a5fa',
   },
+  'gpt-4o': {
+    apiKey: () => process.env.OPENAI_API_KEY,
+    baseUrl: 'https://api.openai.com',
+    model: 'gpt-4o',
+    label: 'GPT-4o',
+    color: '#10b981',
+  },
+  'gpt-4o-mini': {
+    apiKey: () => process.env.OPENAI_API_KEY,
+    baseUrl: 'https://api.openai.com',
+    model: 'gpt-4o-mini',
+    label: 'GPT-4o Mini',
+    color: '#059669',
+  },
 }
 
 async function callAnthropic(model: string, systemPrompt: string, messages: Array<{ role: string; content: string }>, apiKey: string): Promise<string> {
