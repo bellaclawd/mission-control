@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -11,143 +11,45 @@ interface Module {
   description: string
   content: string
   category: string
-  order: number
-  createdAt: string
-  updatedAt: string
+  sort_order: number
+  created_at: string
+  updated_at: string
 }
-
-// ─── Seed data — edit these or add more via the UI ───────────────────────────
-
-const INITIAL_MODULES: Module[] = [
-  {
-    id: 'intro',
-    title: 'What is OpenClaw?',
-    description: 'Overview of what OpenClaw is and what it can do for you.',
-    content: `# What is OpenClaw?
-
-OpenClaw is a personal AI agent platform. It connects AI models (Claude, GPT, local LLMs) to your real life — your files, calendar, messages, smart home, code, and more.
-
-## Key Concepts
-
-- **Agents** — AI assistants with personalities, memory, and tools. Each agent has a role (CEO, VP of Pokémon, etc.)
-- **Mission Control** — This dashboard. Where you monitor and manage everything.
-- **Skills** — Modular capabilities you can install (web scraping, image gen, email, etc.)
-- **Channels** — How agents receive and send messages (Discord, Telegram, WhatsApp, etc.)
-- **Gateway** — The backbone service that routes everything together.
-
-## What makes it different?
-
-OpenClaw agents remember things between sessions using memory files. They can take real actions — send messages, run code, control lights, browse the web — not just answer questions.`,
-    category: 'Getting Started',
-    order: 1,
-    createdAt: '2026-03-29',
-    updatedAt: '2026-03-29',
-  },
-  {
-    id: 'setup',
-    title: 'Initial Setup',
-    description: 'How to install OpenClaw and get Mission Control running.',
-    content: `# Initial Setup
-
-## Install OpenClaw
-
-\`\`\`bash
-npm install -g openclaw
-\`\`\`
-
-## Start the Gateway
-
-\`\`\`bash
-openclaw gateway start
-\`\`\`
-
-## Set Up Mission Control
-
-\`\`\`bash
-git clone https://github.com/bellaclawd/mission-control.git
-cd mission-control
-pnpm install
-cp .env.example .env.local
-# Fill in your .env.local (see SETUP.md)
-pnpm build
-pnpm start
-\`\`\`
-
-Open http://localhost:3000 — you should see Mission Control.
-
-## Get Your Gateway Token
-
-\`\`\`bash
-openclaw config get auth.token
-\`\`\`
-
-Paste this into your \`.env.local\` as \`OPENCLAW_GATEWAY_TOKEN\` and \`NEXT_PUBLIC_GATEWAY_TOKEN\`.`,
-    category: 'Getting Started',
-    order: 2,
-    createdAt: '2026-03-29',
-    updatedAt: '2026-03-29',
-  },
-  {
-    id: 'agents',
-    title: 'Creating Your First Agent',
-    description: 'How to create, configure, and customize an agent.',
-    content: `# Creating Your First Agent
-
-## What is an agent?
-
-An agent is an AI with a specific role, personality, memory, and set of tools. You can have multiple agents for different purposes.
-
-## Agent Config Files
-
-Every agent lives in your workspace directory (\`~/.openclaw/workspace-*\`):
-
-- \`SOUL.md\` — personality and tone
-- \`IDENTITY.md\` — name, role, emoji, avatar
-- \`USER.md\` — info about the human they help
-- \`MEMORY.md\` — long-term memory (updated over time)
-- \`AGENTS.md\` — rules and conventions
-
-## Connecting an Agent to a Channel
-
-In \`openclaw.json\`, add your agent under \`agents\` and bind it to a channel (Discord server, Telegram bot, etc.).
-
-## Example: Discord Agent
-
-1. Create a Discord bot at discord.com/developers
-2. Add the bot token to OpenClaw config
-3. Bind the agent to a Discord channel in \`openclaw.json\`
-4. Your agent will now respond to messages in that channel`,
-    category: 'Agents',
-    order: 3,
-    createdAt: '2026-03-29',
-    updatedAt: '2026-03-29',
-  },
-]
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const CATEGORIES = ['All', 'Getting Started', 'Agents', 'Skills', 'Automation', 'Advanced', 'My Changes']
-
-function slugify(title: string) {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-}
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
 export function SkoolPanel() {
-  const [modules, setModules] = useState<Module[]>(INITIAL_MODULES)
+  const [modules, setModules] = useState<Module[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeModule, setActiveModule] = useState<Module | null>(null)
   const [category, setCategory] = useState('All')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', content: '', category: 'My Changes' })
 
-  const filtered = category === 'All'
-    ? modules
-    : modules.filter(m => m.category === category)
+  const fetchModules = useCallback(async () => {
+    try {
+      const res = await fetch('/api/skool')
+      if (!res.ok) throw new Error('Failed to load')
+      const data = await res.json()
+      setModules(data.modules || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchModules() }, [fetchModules])
+
+  const filtered = category === 'All' ? modules : modules.filter(m => m.category === category)
 
   function openModule(m: Module) {
     setActiveModule(m)
+    setAdding(false)
     setEditing(false)
   }
 
@@ -155,24 +57,28 @@ export function SkoolPanel() {
     setForm({ title: '', description: '', content: '', category: 'My Changes' })
     setAdding(true)
     setActiveModule(null)
+    setEditing(false)
   }
 
-  function saveNew() {
+  async function saveNew() {
     if (!form.title.trim()) return
-    const now = new Date().toISOString().slice(0, 10)
-    const newMod: Module = {
-      id: slugify(form.title),
-      title: form.title.trim(),
-      description: form.description.trim(),
-      content: form.content.trim(),
-      category: form.category,
-      order: modules.length + 1,
-      createdAt: now,
-      updatedAt: now,
+    setSaving(true)
+    try {
+      const res = await fetch('/api/skool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      const data = await res.json()
+      await fetchModules()
+      setActiveModule(data.module)
+      setAdding(false)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
     }
-    setModules(prev => [...prev, newMod])
-    setActiveModule(newMod)
-    setAdding(false)
   }
 
   function startEdit() {
@@ -186,18 +92,36 @@ export function SkoolPanel() {
     setEditing(true)
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!activeModule || !form.title.trim()) return
-    const now = new Date().toISOString().slice(0, 10)
-    const updated = { ...activeModule, ...form, updatedAt: now }
-    setModules(prev => prev.map(m => m.id === activeModule.id ? updated : m))
-    setActiveModule(updated)
-    setEditing(false)
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/skool/${activeModule.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      const data = await res.json()
+      await fetchModules()
+      setActiveModule(data.module)
+      setEditing(false)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function deleteModule(id: string) {
-    setModules(prev => prev.filter(m => m.id !== id))
-    if (activeModule?.id === id) setActiveModule(null)
+  async function deleteModule(id: string) {
+    if (!confirm('Delete this module?')) return
+    try {
+      await fetch(`/api/skool/${id}`, { method: 'DELETE' })
+      await fetchModules()
+      if (activeModule?.id === id) setActiveModule(null)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   return (
@@ -205,7 +129,6 @@ export function SkoolPanel() {
 
       {/* ── Sidebar ─────────────────────────────────────── */}
       <div className="w-64 shrink-0 border-r border-border flex flex-col h-full">
-        {/* Header */}
         <div className="px-4 pt-5 pb-3 border-b border-border">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">🎓</span>
@@ -214,7 +137,6 @@ export function SkoolPanel() {
           <p className="text-xs text-muted-foreground">OpenClaw tutorials & docs</p>
         </div>
 
-        {/* Category filter */}
         <div className="px-3 pt-3 pb-2 flex flex-wrap gap-1">
           {CATEGORIES.map(cat => (
             <button
@@ -231,16 +153,18 @@ export function SkoolPanel() {
           ))}
         </div>
 
-        {/* Module list */}
         <div className="flex-1 overflow-y-auto px-2 py-1">
-          {filtered.length === 0 && (
-            <p className="text-xs text-muted-foreground px-2 py-4 text-center">No modules yet in this category.</p>
+          {loading && (
+            <p className="text-xs text-muted-foreground px-2 py-4 text-center">Loading...</p>
+          )}
+          {!loading && filtered.length === 0 && (
+            <p className="text-xs text-muted-foreground px-2 py-4 text-center">No modules in this category yet.</p>
           )}
           {filtered.map(m => (
             <button
               key={m.id}
               onClick={() => openModule(m)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors group ${
+              className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors ${
                 activeModule?.id === m.id
                   ? 'bg-primary/15 text-primary'
                   : 'hover:bg-secondary/60 text-foreground'
@@ -255,7 +179,6 @@ export function SkoolPanel() {
           ))}
         </div>
 
-        {/* Add button */}
         <div className="px-3 py-3 border-t border-border shrink-0">
           <Button size="sm" className="w-full" onClick={startAdd}>
             + New Module
@@ -268,118 +191,36 @@ export function SkoolPanel() {
 
         {/* Add form */}
         {adding && (
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-lg font-semibold mb-4">New Module</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Title</label>
-                <input
-                  autoFocus
-                  value={form.title}
-                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. Setting Up Discord"
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Short description</label>
-                <input
-                  value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="One sentence about what this covers"
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
-                <select
-                  value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/50"
-                >
-                  {CATEGORIES.filter(c => c !== 'All').map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Content (Markdown)</label>
-                <textarea
-                  value={form.content}
-                  onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                  rows={16}
-                  placeholder="Write your module content in Markdown..."
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 font-mono resize-y"
-                />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button onClick={saveNew} size="sm">Save Module</Button>
-                <Button variant="outline" size="sm" onClick={() => setAdding(false)}>Cancel</Button>
-              </div>
-            </div>
-          </div>
+          <ModuleForm
+            form={form}
+            setForm={setForm}
+            onSave={saveNew}
+            onCancel={() => setAdding(false)}
+            saving={saving}
+            title="New Module"
+          />
         )}
 
         {/* Edit form */}
         {editing && activeModule && (
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-lg font-semibold mb-4">Edit Module</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Title</label>
-                <input
-                  autoFocus
-                  value={form.title}
-                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Short description</label>
-                <input
-                  value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
-                <select
-                  value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/50"
-                >
-                  {CATEGORIES.filter(c => c !== 'All').map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Content (Markdown)</label>
-                <textarea
-                  value={form.content}
-                  onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                  rows={16}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/50 font-mono resize-y"
-                />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button onClick={saveEdit} size="sm">Save Changes</Button>
-                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
-              </div>
-            </div>
-          </div>
+          <ModuleForm
+            form={form}
+            setForm={setForm}
+            onSave={saveEdit}
+            onCancel={() => setEditing(false)}
+            saving={saving}
+            title="Edit Module"
+          />
         )}
 
         {/* Module viewer */}
         {!adding && !editing && activeModule && (
           <div className="max-w-2xl mx-auto">
-            {/* Module header */}
             <div className="flex items-start justify-between mb-6 gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] px-2 py-0.5 rounded bg-primary/15 text-primary">{activeModule.category}</span>
-                  <span className="text-[10px] text-muted-foreground/50">Updated {activeModule.updatedAt}</span>
+                  <span className="text-[10px] text-muted-foreground/50">Updated {activeModule.updated_at}</span>
                 </div>
                 <h2 className="text-xl font-bold text-foreground">{activeModule.title}</h2>
                 <p className="text-sm text-muted-foreground mt-1">{activeModule.description}</p>
@@ -396,8 +237,6 @@ export function SkoolPanel() {
                 </Button>
               </div>
             </div>
-
-            {/* Rendered content */}
             <div className="prose prose-invert prose-sm max-w-none">
               <MarkdownRenderer content={activeModule.content} />
             </div>
@@ -411,7 +250,7 @@ export function SkoolPanel() {
             <div>
               <h3 className="text-lg font-semibold text-foreground">Welcome to Skool</h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                Your OpenClaw tutorial library. Pick a module from the sidebar or create a new one to document changes, tips, and how-tos.
+                Your OpenClaw tutorial library. Pick a module from the sidebar or create a new one.
               </p>
             </div>
             <Button onClick={startAdd}>+ New Module</Button>
@@ -422,7 +261,72 @@ export function SkoolPanel() {
   )
 }
 
-// ─── Simple Markdown renderer (no deps) ──────────────────────────────────────
+// ─── Module Form ──────────────────────────────────────────────────────────────
+
+function ModuleForm({ form, setForm, onSave, onCancel, saving, title }: {
+  form: { title: string; description: string; content: string; category: string }
+  setForm: (fn: (f: typeof form) => typeof form) => void
+  onSave: () => void
+  onCancel: () => void
+  saving: boolean
+  title: string
+}) {
+  const CATS = ['Getting Started', 'Agents', 'Skills', 'Automation', 'Advanced', 'My Changes']
+  return (
+    <div className="max-w-2xl mx-auto">
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Title</label>
+          <input
+            autoFocus
+            value={form.title}
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            placeholder="e.g. Setting Up Discord"
+            className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Short description</label>
+          <input
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="One sentence about what this covers"
+            className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+          <select
+            value={form.category}
+            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+            className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/50"
+          >
+            {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Content (Markdown)</label>
+          <textarea
+            value={form.content}
+            onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+            rows={18}
+            placeholder="Write your module content in Markdown..."
+            className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 font-mono resize-y"
+          />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button onClick={onSave} size="sm" disabled={saving}>
+            {saving ? 'Saving...' : 'Save Module'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Simple Markdown renderer ─────────────────────────────────────────────────
 
 function MarkdownRenderer({ content }: { content: string }) {
   const lines = content.split('\n')
@@ -432,9 +336,7 @@ function MarkdownRenderer({ content }: { content: string }) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // Code block
     if (line.startsWith('```')) {
-      const lang = line.slice(3).trim()
       const codeLines: string[] = []
       i++
       while (i < lines.length && !lines[i].startsWith('```')) {
@@ -446,26 +348,20 @@ function MarkdownRenderer({ content }: { content: string }) {
           <code className="text-xs font-mono text-green-300">{codeLines.join('\n')}</code>
         </pre>
       )
-      i++
-      continue
+      i++; continue
     }
-
-    // H1
     if (line.startsWith('# ')) {
       elements.push(<h1 key={i} className="text-2xl font-bold text-foreground mt-6 mb-3 first:mt-0">{line.slice(2)}</h1>)
       i++; continue
     }
-    // H2
     if (line.startsWith('## ')) {
       elements.push(<h2 key={i} className="text-lg font-semibold text-foreground mt-5 mb-2 border-b border-border pb-1">{line.slice(3)}</h2>)
       i++; continue
     }
-    // H3
     if (line.startsWith('### ')) {
       elements.push(<h3 key={i} className="text-base font-semibold text-foreground mt-4 mb-1">{line.slice(4)}</h3>)
       i++; continue
     }
-    // List item
     if (line.startsWith('- ')) {
       const items: string[] = []
       while (i < lines.length && lines[i].startsWith('- ')) {
@@ -484,12 +380,10 @@ function MarkdownRenderer({ content }: { content: string }) {
       )
       continue
     }
-    // Empty line
     if (line.trim() === '') {
       elements.push(<div key={i} className="h-2" />)
       i++; continue
     }
-    // Normal paragraph
     elements.push(
       <p key={i} className="text-sm text-foreground/90 leading-relaxed my-1"
         dangerouslySetInnerHTML={{ __html: inlineFormat(line) }}
@@ -497,7 +391,6 @@ function MarkdownRenderer({ content }: { content: string }) {
     )
     i++
   }
-
   return <>{elements}</>
 }
 
