@@ -685,8 +685,8 @@ export function SettingsPanel() {
           )
         })}
         <div className="w-px bg-border mx-1 self-stretch" />
-        {(['debug', 'audit', 'users', 'nodes', 'gateway', 'webhooks', 'github', 'channels'] as const).map(tab => {
-          const labels: Record<string, string> = { debug: 'Debug', audit: 'Audit', users: 'Users', nodes: 'Nodes', gateway: 'Gateway', webhooks: 'Webhooks', github: 'GitHub', channels: 'Channels' }
+        {(['debug', 'audit', 'users', 'nodes', 'gateway', 'webhooks', 'github'] as const).map(tab => {
+          const labels: Record<string, string> = { debug: 'Debug', audit: 'Audit', users: 'Users', nodes: 'Nodes', gateway: 'Gateway', webhooks: 'Webhooks', github: 'GitHub' }
           return (
             <Button
               key={tab}
@@ -712,7 +712,7 @@ export function SettingsPanel() {
       {specialTab === 'gateway' && <div className="flex-1 overflow-auto"><MultiGatewayPanel /></div>}
       {specialTab === 'webhooks' && <div className="flex-1 overflow-auto"><WebhookPanel /></div>}
       {specialTab === 'github' && <div className="flex-1 overflow-auto"><GitHubSyncPanel /></div>}
-      {specialTab === 'channels' && <div className="flex-1 overflow-auto"><ChannelsPanel /></div>}
+      
 
       {!specialTab && <>
 

@@ -936,8 +936,11 @@ export const useMissionControl = create<MissionControlStore>()(
     // UI State — sidebar & layout persistence
     activeTab: 'overview',
     sidebarExpanded: (() => {
-      if (typeof window === 'undefined') return false
-      try { return localStorage.getItem('mc-sidebar-expanded') === 'true' } catch { return false }
+      if (typeof window === 'undefined') return true
+      try {
+        const stored = localStorage.getItem('mc-sidebar-expanded')
+        return stored === null ? true : stored === 'true'
+      } catch { return true }
     })(),
     collapsedGroups: (() => {
       if (typeof window === 'undefined') return [] as string[]

@@ -99,6 +99,15 @@ export const WIDGET_CATALOG: DashboardWidget[] = [
     defaultSize: 'full',
     component: 'QuickActionsWidget',
   },
+  {
+    id: 'active-jobs',
+    label: 'Active Jobs',
+    description: 'Running and recent subagent jobs',
+    category: 'sessions',
+    modes: ['local', 'full'],
+    defaultSize: 'md',
+    component: 'ActiveJobsWidget',
+  },
 ]
 
 export const LOCAL_DEFAULT_LAYOUT = [
@@ -106,6 +115,7 @@ export const LOCAL_DEFAULT_LAYOUT = [
   'runtime-health',
   'session-workbench',
   'event-stream',
+  'active-jobs',
   'task-flow',
   'github-signal',
   'quick-actions',
@@ -116,6 +126,7 @@ export const GATEWAY_DEFAULT_LAYOUT = [
   'gateway-health',
   'session-workbench',
   'event-stream',
+  'active-jobs',
   'task-flow',
   'security-audit',
   'maintenance',

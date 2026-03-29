@@ -265,6 +265,34 @@ const LOUNGE_WAYPOINTS = [
   { x: 76, y: 68 },
 ]
 
+// Viridian City: idle path waypoints — the light grey (#dee7e7) path loop inside the city
+// Vertical path at x≈45%, horizontal paths at y≈54% and y≈70%, forming a loop around buildings
+const VIRIDIAN_IDLE_WAYPOINTS = [
+  { x: 45, y: 22 },  // top of vertical path
+  { x: 45, y: 34 },  // vertical path, passing top buildings
+  { x: 45, y: 46 },  // vertical path mid
+  { x: 45, y: 54 },  // intersection with horizontal path
+  { x: 60, y: 54 },  // walk right along horizontal
+  { x: 75, y: 54 },  // right side
+  { x: 75, y: 62 },  // walk down right side
+  { x: 75, y: 70 },  // bottom horizontal path (right)
+  { x: 60, y: 70 },  // walk left along bottom
+  { x: 45, y: 70 },  // back to vertical path
+  { x: 45, y: 74 },  // walk down a bit
+  { x: 45, y: 54 },  // walk back up to mid intersection
+  { x: 45, y: 34 },  // continue up
+]
+
+// Viridian City: standing positions in front of buildings (for busy agents)
+// Derived from black box analysis of standing-positions.png (768x640 map)
+const VIRIDIAN_STANDING_SPOTS = [
+  { x: 53.4, y: 33.0 },  // building top-left
+  { x: 75.7, y: 33.0 },  // building top-right
+  { x: 53.4, y: 53.1 },  // building mid-left
+  { x: 75.7, y: 53.1 },  // building mid-right
+  { x: 53.4, y: 71.8 },  // building bottom (Pokémon Center)
+]
+
 function getPropSprite(propId: string): string {
   if (propId === 'desk-a' || propId === 'desk-b' || propId === 'desk-e' || propId === 'desk-f') return '/office-sprites/kenney/desk.png'
   if (propId.startsWith('desk-')) return '/office-sprites/kenney/tableCross.png'
@@ -674,6 +702,27 @@ export function OfficePanel() {
 
   const currentSeatMap = useMemo(() => {
     const seatMap = new Map<number, SeatPosition>()
+
+    // Viridian City mode:
+    // Active/busy agents → stand at building spots
+    // Idle/offline agents → start on path, movement system walks them around
+    if (timeTheme === 'viridian') {
+      const allAgents = [...officeLayout].flatMap(z => z.workers).sort((a, b) => a.agent.name.localeCompare(b.agent.name))
+      const workingAgents = allAgents.filter(w => w.agent.status === 'busy' || (w.agent.status as string) === 'active')
+      const idleAgents = allAgents.filter(w => w.agent.status !== 'busy' && (w.agent.status as string) !== 'active')
+
+      workingAgents.forEach((worker, i) => {
+        const spot = VIRIDIAN_STANDING_SPOTS[i % VIRIDIAN_STANDING_SPOTS.length]
+        seatMap.set(worker.agent.id, { seatKey: `viridian:building${i}`, x: spot.x, y: spot.y })
+      })
+      idleAgents.forEach((worker, i) => {
+        // Spread them across different path points so they don't stack
+        const pathIdx = (i * 2 + 1) % VIRIDIAN_IDLE_WAYPOINTS.length
+        const wp = VIRIDIAN_IDLE_WAYPOINTS[pathIdx]
+        seatMap.set(worker.agent.id, { seatKey: `viridian:path${i}`, x: wp.x, y: wp.y })
+      })
+      return seatMap
+    }
     const zoneSeatTemplates: Record<string, Array<{ x: number; y: number }>> = {
       engineering: [{ x: 24, y: 36 }, { x: 32, y: 36 }, { x: 24, y: 42 }, { x: 32, y: 42 }],
       product: [{ x: 54, y: 36 }, { x: 62, y: 36 }, { x: 54, y: 42 }, { x: 62, y: 42 }],
@@ -724,7 +773,7 @@ export function OfficePanel() {
       }
     }
     return seatMap
-  }, [officeLayout])
+  }, [officeLayout, timeTheme])
 
   const gameWorkers = useMemo(() => {
     const workers: Array<{ agent: Agent; x: number; y: number; zoneLabel: string; seatLabel: string }> = []
@@ -1200,34 +1249,59 @@ export function OfficePanel() {
 
   useEffect(() => {
     if (!isLocalMode) return
+    // In Viridian mode, move all idle agents every 6s; otherwise 2 agents every 14s
+    const intervalMs = timeTheme === 'viridian' ? 6000 : 14000
     const interval = setInterval(() => {
       const activeMovingIds = movingAgentIdsRef.current
+      const idleStatuses = ['idle', 'offline'] as const
       const idleCandidates = renderedWorkersRef.current
-        .filter((worker) => worker.agent.status === 'idle' && !worker.isMoving && !activeMovingIds.has(worker.agent.id))
+        .filter((worker) => (idleStatuses as readonly string[]).includes(worker.agent.status) && !worker.isMoving && !activeMovingIds.has(worker.agent.id))
         .sort((a, b) => a.agent.name.localeCompare(b.agent.name))
-        .slice(0, 2)
+        .slice(0, timeTheme === 'viridian' ? 10 : 2)
 
       if (idleCandidates.length === 0) return
       const cycle = Math.floor(Date.now() / 14_000)
 
       for (const worker of idleCandidates) {
-        const waypoint = LOUNGE_WAYPOINTS[(hashNumber(worker.agent.name) + cycle) % LOUNGE_WAYPOINTS.length]
-        enqueueMovement(worker.agent, worker.x, worker.y, waypoint.x, waypoint.y, 2200)
+        if (timeTheme === 'viridian') {
+          // Pac-man style: walk along left path down, then along bottom path right, then snap back to top
+          const agentOffset = hashNumber(worker.agent.name) % VIRIDIAN_IDLE_WAYPOINTS.length
+          const curIdx = (agentOffset + cycle) % VIRIDIAN_IDLE_WAYPOINTS.length
+          const nextIdx = (curIdx + 1) % VIRIDIAN_IDLE_WAYPOINTS.length
+          const cur = VIRIDIAN_IDLE_WAYPOINTS[curIdx]
+          const next = VIRIDIAN_IDLE_WAYPOINTS[nextIdx]
+          
+          // Walk to current waypoint from current position
+          enqueueMovement(worker.agent, worker.x, worker.y, cur.x, cur.y, 2500)
+          
+          const timer = setTimeout(() => {
+            if (nextIdx === 0) {
+              // Pac-man wrap: teleport back to start (snap position, no animation)
+              enqueueMovement(worker.agent, VIRIDIAN_IDLE_WAYPOINTS[0].x, VIRIDIAN_IDLE_WAYPOINTS[0].y, VIRIDIAN_IDLE_WAYPOINTS[0].x, VIRIDIAN_IDLE_WAYPOINTS[0].y, 100)
+            } else {
+              enqueueMovement(worker.agent, cur.x, cur.y, next.x, next.y, 2500)
+            }
+          }, 2700)
+          roamReturnTimersRef.current.set(worker.agent.id, timer)
+        } else {
+          const waypoint = LOUNGE_WAYPOINTS[(hashNumber(worker.agent.name) + cycle) % LOUNGE_WAYPOINTS.length]
+          enqueueMovement(worker.agent, worker.x, worker.y, waypoint.x, waypoint.y, 2200)
 
-        const existingReturnTimer = roamReturnTimersRef.current.get(worker.agent.id)
-        if (existingReturnTimer) clearTimeout(existingReturnTimer)
-        const returnTimer = setTimeout(() => {
-          const seat = currentSeatMap.get(worker.agent.id)
-          if (seat) {
-            enqueueMovement(worker.agent, waypoint.x, waypoint.y, seat.x, seat.y, 2200)
-          }
-          roamReturnTimersRef.current.delete(worker.agent.id)
-        }, 2700)
-        roamReturnTimersRef.current.set(worker.agent.id, returnTimer)
+          const existingReturnTimer = roamReturnTimersRef.current.get(worker.agent.id)
+          if (existingReturnTimer) clearTimeout(existingReturnTimer)
+          const returnTimer = setTimeout(() => {
+            const seat = currentSeatMap.get(worker.agent.id)
+            if (seat) {
+              enqueueMovement(worker.agent, waypoint.x, waypoint.y, seat.x, seat.y, 2200)
+            }
+            roamReturnTimersRef.current.delete(worker.agent.id)
+          }, 2700)
+          roamReturnTimersRef.current.set(worker.agent.id, returnTimer)
+        }
       }
     }, 14_000)
     return () => clearInterval(interval)
-  }, [currentSeatMap, enqueueMovement, isLocalMode])
+  }, [currentSeatMap, enqueueMovement, isLocalMode, timeTheme])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1369,12 +1443,14 @@ export function OfficePanel() {
   }
 
   const onMapWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (timeTheme === 'viridian') return // No zoom in Viridian — fixed map
     event.preventDefault()
     const delta = event.deltaY > 0 ? -0.08 : 0.08
     setMapZoom((current) => Math.min(2.2, Math.max(0.8, Number((current + delta).toFixed(2)))))
   }
 
   const onMapMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (timeTheme === 'viridian') return // No pan in Viridian
     mapDragActiveRef.current = true
     mapDragOriginRef.current = { x: event.clientX, y: event.clientY }
     mapPanStartRef.current = { ...mapPan }
@@ -1682,14 +1758,18 @@ export function OfficePanel() {
 
           <div
             ref={mapViewportRef}
-            className="relative rounded-lg border border-border overflow-hidden min-h-[560px] cursor-grab active:cursor-grabbing shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+            className="relative rounded-lg border border-border overflow-hidden cursor-grab active:cursor-grabbing shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
             style={{
               backgroundColor: timeTheme === 'viridian' ? '#1a2e1a' : 'hsl(var(--background))',
               backgroundImage: timeTheme === 'viridian'
-                ? `url('/office-sprites/viridian/grass.svg')`
+                ? `url('/office-sprites/viridian/map.png')`
                 : `${themePalette.shell}, linear-gradient(90deg, ${themePalette.gridLine} 1px, transparent 1px), linear-gradient(${themePalette.gridLine} 1px, transparent 1px)`,
-              backgroundSize: timeTheme === 'viridian' ? '32px 32px' : 'auto, 64px 64px, 64px 64px',
-              imageRendering: 'pixelated',
+              backgroundSize: timeTheme === 'viridian' ? '100% 100%' : 'auto, 64px 64px, 64px 64px',
+              backgroundPosition: 'top left',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: timeTheme === 'viridian' ? 'pixelated' : 'auto',
+              // Force map aspect ratio 768:640 = 6:5 so full image shows
+              ...(timeTheme === 'viridian' ? { aspectRatio: '768 / 640', minHeight: 'unset', width: '100%' } : { minHeight: '560px' }),
             }}
             onWheel={onMapWheel}
             onMouseDown={onMapMouseDown}
@@ -1785,7 +1865,10 @@ export function OfficePanel() {
                   key={item}
                   variant="ghost"
                   size="xs"
-                  onClick={() => setTimeTheme(item)}
+                  onClick={() => {
+                    setTimeTheme(item)
+                    if (item === 'viridian') { setMapZoom(1); setMapPan({ x: 0, y: 0 }) }
+                  }}
                   className={`h-auto px-1.5 py-0.5 text-[10px] font-mono uppercase ${timeTheme === item ? 'bg-void-cyan/20 text-void-cyan' : 'hover:bg-void-cyan/10 text-muted-foreground'}`}
                 >
                   {item}
@@ -1804,7 +1887,7 @@ export function OfficePanel() {
               style={{ transform: `translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapZoom})` }}
             >
               <div className="absolute inset-0 z-0">
-                {floorTiles.map((tile) => (
+                {timeTheme !== 'viridian' && floorTiles.map((tile) => (
                   <div
                     key={tile.id}
                     className="absolute border border-void-cyan/[0.06]"
@@ -1813,33 +1896,28 @@ export function OfficePanel() {
                       top: `${tile.y}%`,
                       width: `${tile.w}%`,
                       height: `${tile.h}%`,
-                      backgroundImage: timeTheme === 'viridian'
-                        ? `url('/office-sprites/viridian/grass.svg')`
-                        : `url('/office-sprites/kenney/floorFull.png')`,
-                      backgroundSize: timeTheme === 'viridian' ? '16px 16px' : '100% 100%',
+                      backgroundImage: `url('/office-sprites/kenney/floorFull.png')`,
+                      backgroundSize: '100% 100%',
                       opacity: tile.sprite ? themePalette.floorOpacityA : themePalette.floorOpacityB,
                       filter: themePalette.floorFilter,
-                      imageRendering: timeTheme === 'viridian' ? 'pixelated' : 'auto',
                     }}
                   />
                 ))}
               </div>
 
-              {/* Corridor base */}
+              {/* Corridor base — hidden in Viridian mode */}
+              {timeTheme !== 'viridian' && <>
               <div
                 className="absolute left-[14%] top-[45%] w-[72%] h-[6%]"
                 style={{
                   backgroundColor: themePalette.corridor,
-                  backgroundImage: timeTheme === 'viridian' ? `url('/office-sprites/viridian/path.svg')` : 'none',
-                  backgroundSize: timeTheme === 'viridian' ? '16px 16px' : 'auto',
-                  imageRendering: 'pixelated',
-                  border: timeTheme === 'viridian' ? '2px solid #888' : undefined,
-                  borderTop: timeTheme !== 'viridian' ? '1px solid hsl(var(--void-cyan)/0.15)' : undefined,
-                  borderBottom: timeTheme !== 'viridian' ? '1px solid hsl(var(--void-cyan)/0.15)' : undefined,
-                  boxShadow: timeTheme !== 'viridian' ? '0 0 30px hsl(var(--void-cyan)/0.1)' : undefined,
+                  borderTop: '1px solid hsl(var(--void-cyan)/0.15)',
+                  borderBottom: '1px solid hsl(var(--void-cyan)/0.15)',
+                  boxShadow: '0 0 30px hsl(var(--void-cyan)/0.1)',
                 }}
               />
               <div className="absolute left-[14%] top-[47.6%] w-[72%] h-[0.7%]" style={{ backgroundColor: themePalette.corridorStripe }} />
+              </> }
 
               <div className="absolute inset-0 pointer-events-none z-[1]">
                 {heatmapPoints.map((point) => (
@@ -1857,8 +1935,8 @@ export function OfficePanel() {
                 ))}
               </div>
 
-              {/* Zone rooms */}
-              {roomLayoutState.map((room) => (
+              {/* Zone rooms — hidden in Viridian mode (buildings are in the PNG) */}
+              {timeTheme !== 'viridian' && roomLayoutState.map((room) => (
                 <div
                   key={room.id}
                   className={`absolute border border-void-cyan/15 ${room.style} shadow-[inset_0_0_0_1px_hsl(var(--void-cyan)/0.04),0_8px_24px_rgba(0,0,0,0.3)]`}
@@ -1867,13 +1945,9 @@ export function OfficePanel() {
                     top: `${room.y}%`,
                     width: `${room.w}%`,
                     height: `${room.h}%`,
-                    backgroundImage: timeTheme === 'viridian'
-                      ? `url('/office-sprites/viridian/building.svg')`
-                      : `linear-gradient(to bottom right, rgba(255,255,255,0.04), rgba(0,0,0,0.1)), url('/office-sprites/kenney/floorFull.png')`,
-                    backgroundSize: timeTheme === 'viridian' ? '16px 16px' : 'auto, 22% 22%',
+                    backgroundImage: `linear-gradient(to bottom right, rgba(255,255,255,0.04), rgba(0,0,0,0.1)), url('/office-sprites/kenney/floorFull.png')`,
+                    backgroundSize: 'auto, 22% 22%',
                     filter: themePalette.floorFilter,
-                    imageRendering: timeTheme === 'viridian' ? 'pixelated' : 'auto',
-                    border: timeTheme === 'viridian' ? '3px solid #505030' : undefined,
                   }}
                   onClick={(event) => {
                     event.stopPropagation()
@@ -1898,14 +1972,14 @@ export function OfficePanel() {
                   }}
                 >
                   <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `${themePalette.roomTone}, linear-gradient(to bottom right, rgba(255,255,255,0.08), transparent 45%)` }} />
-                  <div className={`absolute left-2 top-1 rounded px-1.5 py-0.5 text-[9px] font-mono uppercase ${timeTheme === 'viridian' ? 'tracking-widest text-yellow-300 drop-shadow-[0_1px_0_#000] bg-black/60 border border-yellow-900/60' : 'bg-card/70 backdrop-blur-sm border border-void-cyan/15 text-void-cyan/80 tracking-wide'}`}>
+                  <div className="absolute left-2 top-1 rounded px-1.5 py-0.5 text-[9px] font-mono uppercase bg-card/70 backdrop-blur-sm border border-void-cyan/15 text-void-cyan/80 tracking-wide">
                     {room.label}
                   </div>
                 </div>
               ))}
 
-              {/* Props / furniture */}
-              {mapPropsState.map((prop) => (
+              {/* Props / furniture — hidden in Viridian mode */}
+              {timeTheme !== 'viridian' && mapPropsState.map((prop) => (
                 <div
                   key={prop.id}
                   className={`absolute relative border ${prop.style} ${prop.border} shadow-[0_0_12px_rgba(108,164,255,0.18)] overflow-hidden`}

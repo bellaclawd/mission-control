@@ -30,7 +30,11 @@ import { SuperAdminPanel } from '@/components/panels/super-admin-panel'
 import { OfficePanel } from '@/components/panels/office-panel'
 import { GitHubSyncPanel } from '@/components/panels/github-sync-panel'
 import { SkillsPanel } from '@/components/panels/skills-panel'
+import { SkillsHubPanel } from '@/components/panels/skills-hub-panel'
 import { FilesPanel } from '@/components/panels/files-panel'
+import { WhatsAppAlertsPanel } from '@/components/panels/whatsapp-alerts-panel'
+import { CommunicationPanel } from '@/components/panels/communication-panel'
+import { CouncilPanel } from '@/components/panels/council-panel'
 import { ChecklistPanel } from '@/components/panels/checklist-panel'
 import { LocalAgentsDocPanel } from '@/components/panels/local-agents-doc-panel'
 import { ChannelsPanel } from '@/components/panels/channels-panel'
@@ -564,9 +568,17 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'monitor':
       return <SystemMonitorPanel />
     case 'skills':
+      return <SkillsHubPanel />
+    case 'skills-classic':
       return <SkillsPanel />
     case 'files':
       return <FilesPanel />
+    case 'whatsapp-alerts':
+      return <WhatsAppAlertsPanel />
+    case 'communication':
+      return <CommunicationPanel />
+    case 'council':
+      return <CouncilPanel />
     case 'checklist':
       return <ChecklistPanel />
     case 'channels':

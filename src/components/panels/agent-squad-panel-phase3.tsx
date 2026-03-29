@@ -768,7 +768,12 @@ function AgentDetailModalPhase3({
         <div className="px-5 pt-5 pb-0 border-b border-border">
           <div className="flex justify-between items-center gap-4 mb-4">
             <div className="flex items-center gap-3 min-w-0">
-              <AgentAvatar name={agent.name} size="md" />
+              <AgentAvatar
+                name={agent.name}
+                agentId={(agent.config as any)?.openclawId || agent.name.toLowerCase()}
+                avatarPath={(agent.config as any)?.identity?.avatar}
+                size="md"
+              />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-semibold text-foreground leading-tight truncate">{agentState.name}</h3>
@@ -1260,9 +1265,16 @@ function OrgNode({
 
         {/* Avatar */}
         <div className="flex flex-col items-center gap-3">
-          <div className={`relative flex items-center justify-center rounded-full font-bold shadow-inner
+          <div className={`relative flex items-center justify-center rounded-full font-bold shadow-inner overflow-hidden
             ${isRoot ? 'w-20 h-20 text-3xl bg-gradient-to-br from-blue-600 to-purple-600' : 'w-16 h-16 text-2xl bg-gradient-to-br from-teal-600 to-blue-600'}`}>
-            {emoji}
+            <AgentAvatar
+              name={agent.name}
+              agentId={(agent.config as any)?.openclawId || agent.name.toLowerCase()}
+              avatarPath={(agent.config as any)?.identity?.avatar}
+              size={isRoot ? 'lg' : 'md'}
+              className={`absolute inset-0 w-full h-full rounded-full object-cover ${!(agent.config as any)?.identity?.avatar ? 'hidden' : ''}`}
+            />
+            {!(agent.config as any)?.identity?.avatar && emoji}
             {hasRecentHeartbeat(agent) && (
               <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-cyan-400 border-2 border-background animate-pulse" title="Recent heartbeat" />
             )}
@@ -1282,6 +1294,11 @@ function OrgNode({
             <div className="text-[11px] text-muted-foreground/60 mt-1.5">
               {formatLastSeen(agent.last_seen)}
             </div>
+            {(agent.config as any)?.model?.primary && (
+              <div className="text-[10px] text-muted-foreground/70 mt-1 font-mono truncate max-w-full px-1 bg-muted/30 rounded px-2 py-0.5">
+                {((agent.config as any).model.primary as string).split('/').pop()}
+              </div>
+            )}
           </div>
 
           {/* Actions */}

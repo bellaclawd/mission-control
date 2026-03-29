@@ -30,12 +30,14 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'overview', label: 'Overview', icon: <OverviewIcon />, priority: true, essential: true },
       { id: 'agents', label: 'Team', icon: <AgentsIcon />, priority: true, essential: true },
-      { id: 'tasks', label: 'Tasks', icon: <TasksIcon />, priority: true, essential: true },
+      
       { id: 'projects', label: 'Projects', icon: <ProjectsIcon />, priority: true, essential: true },
-      { id: 'skills', label: 'Skills', icon: <SkillsIcon />, priority: false },
+      { id: 'skills', label: 'Skills Hub', icon: <SkillsIcon />, priority: false },
       { id: 'memory', label: 'Memory', icon: <MemoryIcon />, priority: false },
       { id: 'files', label: 'Files', icon: <FilesIcon />, priority: false },
       { id: 'checklist', label: 'Checklist', icon: <ChecklistIcon />, priority: false },
+      { id: 'council', label: 'Council', icon: <CouncilIcon />, priority: false },
+      { id: 'communication', label: 'Communication', icon: <WhatsAppIcon />, priority: false },
     ],
   },
   {
@@ -43,7 +45,7 @@ const navGroups: NavGroup[] = [
     label: 'OBSERVE',
     items: [
       { id: 'activity', label: 'Activity & Logs', icon: <ActivityIcon />, priority: true, essential: true },
-      { id: 'cost-tracker', label: 'Cost Tracker', icon: <TokensIcon />, priority: false },
+      { id: 'cost-tracker', label: 'Usage Tracker', icon: <TokensIcon />, priority: false },
 
       { id: 'exec-approvals', label: 'Approvals', icon: <ApprovalsIcon />, priority: false },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
@@ -1495,6 +1497,27 @@ function MonitorIcon() {
       <rect x="1" y="2" width="14" height="10" rx="1.5" />
       <polyline points="4,9 6,6 8,8 12,4" />
       <path d="M5 14h6" />
+    </svg>
+  )
+}
+
+function CouncilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="5" r="2"/>
+      <circle cx="11" cy="5" r="2"/>
+      <circle cx="8" cy="12" r="2"/>
+      <line x1="5" y1="7" x2="8" y2="10"/>
+      <line x1="11" y1="7" x2="8" y2="10"/>
+    </svg>
+  )
+}
+
+function WhatsAppIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 1C4.134 1 1 4.134 1 8c0 1.26.318 2.448.876 3.484L1 15l3.59-.858A6.965 6.965 0 0 0 8 15c3.866 0 7-3.134 7-7s-3.134-7-7-7z"/>
+      <path d="M5.5 6.5c.5 1 1.5 2.5 3.5 3.5"/>
     </svg>
   )
 }

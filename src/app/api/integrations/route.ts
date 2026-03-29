@@ -38,6 +38,37 @@ interface IntegrationProbeSnapshot {
 }
 
 let integrationProbeCache: { ts: number; value: IntegrationProbeSnapshot } | null = null
+
+// Read openclaw.json channels config for integration status
+function getOpenClawChannels(): { telegram: boolean; telegramAccounts: number; discord: boolean; discordAccounts: number; whatsapp: boolean } {
+  try {
+    const { readFileSync: rfs } = require('node:fs')
+    const { join: j } = require('node:path')
+    const stateDir = config.openclawStateDir
+    if (!stateDir) return { telegram: false, telegramAccounts: 0, discord: false, discordAccounts: 0, whatsapp: false }
+    const configPath = j(stateDir, 'openclaw.json')
+    const raw = JSON.parse(rfs(configPath, 'utf-8'))
+    const channels = raw?.channels || {}
+    const tg = channels.telegram
+    const dc = channels.discord
+    const tgAccounts = tg?.accounts ? Object.keys(tg.accounts).length : 0
+    const dcAccounts = dc?.accounts ? Object.keys(dc.accounts).length : 0
+    // Check WhatsApp bridge
+    let whatsapp = false
+    try {
+      const { execSync } = require('node:child_process')
+      execSync('curl -s --max-time 1 http://127.0.0.1:3002/health', { encoding: 'utf8' })
+      whatsapp = true
+    } catch { /* not running */ }
+    return {
+      telegram: !!(tg?.enabled && tgAccounts > 0),
+      telegramAccounts: tgAccounts,
+      discord: !!(dc?.enabled && dcAccounts > 0),
+      discordAccounts: dcAccounts,
+      whatsapp,
+    }
+  } catch { return { telegram: false, telegramAccounts: 0, discord: false, discordAccounts: 0, whatsapp: false } }
+}
 const INTEGRATION_PROBE_TTL_MS = 5000
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -72,8 +103,10 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
   { id: 'linkedin', name: 'LinkedIn', category: 'social', envVars: ['LINKEDIN_ACCESS_TOKEN'] },
 
-  // Messaging — add entries here for each Telegram bot you run
+  // Messaging
   { id: 'telegram', name: 'Telegram', category: 'messaging', envVars: ['TELEGRAM_BOT_TOKEN'], vaultItem: 'openclaw-telegram-bot-token', testable: true },
+  { id: 'discord', name: 'Discord', category: 'messaging', envVars: ['DISCORD_BOT_TOKEN'] },
+  { id: 'whatsapp', name: 'WhatsApp Bridge', category: 'messaging', envVars: ['WHATSAPP_BRIDGE_URL'] },
 
   // Dev Tools
   { id: 'github', name: 'GitHub', category: 'devtools', envVars: ['GITHUB_TOKEN'], vaultItem: 'openclaw-github-token', testable: true },
@@ -96,6 +129,13 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: 'gateway', name: 'Gateway Auth', category: 'infra', envVars: ['OPENCLAW_GATEWAY_TOKEN'], vaultItem: 'openclaw-openclaw-gateway-token' },
 
   // Browser Automation
+  { id: 'openclaw_browser', name: 'OpenClaw Browser (Brave/CDP)', category: 'browser', envVars: ['OPENCLAW_BROWSER_CDP_PORT'] },
+
+  // Local services
+  { id: 'home_assistant', name: 'Home Assistant', category: 'infra', envVars: ['HASS_TOKEN'] },
+  { id: 'voice_assistant', name: 'Voice Assistant (Jarvis)', category: 'infra', envVars: ['VOICE_ASSISTANT_URL'] },
+  { id: 'pokemon_alerts', name: 'Pokémon Restock Monitor', category: 'infra', envVars: ['POKEMON_ALERTS_URL'] },
+  { id: 'whatsapp_bridge', name: 'WhatsApp Bridge', category: 'messaging', envVars: ['WHATSAPP_BRIDGE_URL'] },
   { id: 'hyperbrowser', name: 'Hyperbrowser', category: 'browser', envVars: ['HYPERBROWSER_API_KEY'], testable: true, recommendation: 'Cloud browser automation for AI agents. Get a key at hyperbrowser.ai' },
 
   // Social / Creator Tools
@@ -435,6 +475,24 @@ export async function GET(request: NextRequest) {
         allSet = false
         anySet = true
       }
+      // Check for gog CLI (gogcli) — the actual tool in use
+      if (!anySet) {
+        try {
+          const { execFileSync: efs } = require('node:child_process')
+          const out = efs('/opt/homebrew/bin/gog', ['auth', 'status'], {
+            encoding: 'utf8', timeout: 5000,
+            env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}` },
+            stdio: ['pipe', 'pipe', 'pipe'],
+          })
+          const accountMatch = out.match(/account\s+(\S+)/)
+          const credsMatch = out.match(/credentials_exists\s+true/)
+          if (credsMatch) {
+            const account = accountMatch?.[1] || 'configured'
+            vars[primaryVar] = { redacted: `gog CLI: ${account}`, set: true }
+            allSet = true; anySet = true
+          }
+        } catch { /* gog not available */ }
+      }
     }
 
     // X integration should default to xint auth when present.
@@ -448,6 +506,98 @@ export async function GET(request: NextRequest) {
         vars[primaryVar] = { redacted: 'xint installed (run `xint auth`)', set: true }
         allSet = false
         anySet = true
+      }
+    }
+
+    // Home Assistant — check if running locally
+    if (def.id === 'home_assistant' && !anySet) {
+      try {
+        const { execSync: es } = require('node:child_process')
+        const out = es('curl -s --max-time 2 http://127.0.0.1:8123/api/ 2>/dev/null', { encoding: 'utf8' })
+        if (out.includes('message')) {
+          vars[def.envVars[0]] = { redacted: 'running on :8123', set: true }
+          allSet = true; anySet = true
+        }
+      } catch { /* not running */ }
+    }
+
+    // Voice Assistant — check if running
+    if (def.id === 'voice_assistant' && !anySet) {
+      try {
+        const { execSync: es } = require('node:child_process')
+        es('pgrep -f voice-assistant', { encoding: 'utf8', stdio: 'pipe' })
+        vars[def.envVars[0]] = { redacted: 'Jarvis running (sherpa-onnx + kokoro)', set: true }
+        allSet = true; anySet = true
+      } catch { /* not running */ }
+    }
+
+    // Pokémon Alerts — check if running
+    if (def.id === 'pokemon_alerts' && !anySet) {
+      try {
+        const { execSync: es } = require('node:child_process')
+        es('pgrep -f pokemon-monitor', { encoding: 'utf8', stdio: 'pipe' })
+        vars[def.envVars[0]] = { redacted: 'monitor running (5 Discord channels)', set: true }
+        allSet = true; anySet = true
+      } catch { /* not running */ }
+    }
+
+    // OpenClaw built-in browser (Brave/Chrome via CDP)
+    if (def.id === 'openclaw_browser' && !anySet) {
+      try {
+        const { readFileSync: rfs } = require('node:fs')
+        const { join: j } = require('node:path')
+        const stateDir = config.openclawStateDir
+        if (stateDir) {
+          const cfg = JSON.parse(rfs(j(stateDir, 'openclaw.json'), 'utf-8'))
+          const browser = cfg?.browser
+          if (browser?.enabled && browser?.executablePath) {
+            const appName = (browser.executablePath as string).split('/').find((p: string) => p.endsWith('.app')) || 'Browser'
+            vars[def.envVars[0]] = { redacted: `${appName} · CDP :${browser.profiles?.openclaw?.cdpPort || 18800}`, set: true }
+            allSet = true; anySet = true
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Firecrawl — check process env directly (may be set in shell but not .env.local)
+    if (def.id === 'firecrawl' && !anySet) {
+      const key = process.env.FIRECRAWL_API_KEY
+      if (key) {
+        vars['FIRECRAWL_API_KEY'] = { redacted: redactValue(key), set: true }
+        allSet = true; anySet = true
+      }
+    }
+
+    // GitHub via gh CLI auth (even without GITHUB_TOKEN env var)
+    if (def.id === 'github' && !anySet) {
+      try {
+        const { execFileSync: efs } = require('node:child_process')
+        const out = efs('/opt/homebrew/bin/gh', ['auth', 'status'], {
+          encoding: 'utf8',
+          env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}` },
+          timeout: 5000,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+        const match = out.match(/Logged in to .+ account (\S+)/)
+        const account = match?.[1] || 'gh CLI'
+        vars[def.envVars[0]] = { redacted: `gh auth: ${account}`, set: true }
+        allSet = true; anySet = true
+      } catch { /* gh not authed */ }
+    }
+
+    // OpenClaw channel integrations (Telegram, Discord, WhatsApp via openclaw.json)
+    if ((def.id === 'telegram' || def.id === 'discord' || def.id === 'whatsapp') && !anySet) {
+      const ocChannels = getOpenClawChannels()
+      const primaryVar = def.envVars[0]
+      if (def.id === 'telegram' && ocChannels.telegram) {
+        vars[primaryVar] = { redacted: `${ocChannels.telegramAccounts} bot(s) configured in openclaw.json`, set: true }
+        allSet = true; anySet = true
+      } else if (def.id === 'discord' && ocChannels.discord) {
+        vars[primaryVar] = { redacted: `${ocChannels.discordAccounts} bot(s) configured in openclaw.json`, set: true }
+        allSet = true; anySet = true
+      } else if (def.id === 'whatsapp' && ocChannels.whatsapp) {
+        vars[primaryVar] = { redacted: 'WhatsApp bridge running on :3002', set: true }
+        allSet = true; anySet = true
       }
     }
 
