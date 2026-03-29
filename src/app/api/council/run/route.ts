@@ -38,19 +38,12 @@ const MODEL_CONFIG: Record<string, { apiKey: () => string | undefined; baseUrl: 
     label: 'Gemini Flash',
     color: '#60a5fa',
   },
-  'gpt-4o': {
+  'gpt-codex': {
     apiKey: () => process.env.OPENAI_API_KEY,
     baseUrl: 'https://api.openai.com',
-    model: 'gpt-4o',
-    label: 'GPT-4o',
+    model: 'gpt-4.1',
+    label: 'GPT Codex',
     color: '#10b981',
-  },
-  'gpt-4o-mini': {
-    apiKey: () => process.env.OPENAI_API_KEY,
-    baseUrl: 'https://api.openai.com',
-    model: 'gpt-4o-mini',
-    label: 'GPT-4o Mini',
-    color: '#059669',
   },
 }
 
