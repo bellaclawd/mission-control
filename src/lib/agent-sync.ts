@@ -94,7 +94,7 @@ function parseIdentityFromFile(content: string): { name?: string; theme?: string
     }
 
     if (!avatar) {
-      const avatarMatch = line.match(/^\*\*Avatar:\*\*\s*(.+)$/i) || line.match(/^avatar\s*:\s*(.+)$/i)
+      const avatarMatch = line.match(/^\*\*Avatar:\*\*\s*(.+)$/i) || line.match(/^avatar\s*:\s*(.+)$/i) || line.match(/^-\s*\*\*Avatar:\*\*\s*(.+)$/i)
       if (avatarMatch?.[1]) {
         avatar = avatarMatch[1].trim()
       }
@@ -179,9 +179,13 @@ export function enrichAgentConfigFromWorkspace(configData: any): any {
   const identityFile = readWorkspaceFile(workspace, 'identity.md')
   const toolsFile = readWorkspaceFile(workspace, 'TOOLS.md')
 
+  const parsedIdentity = parseIdentityFromFile(identityFile || '')
+  const existingIdentity = (configData.identity && typeof configData.identity === 'object') ? configData.identity : {}
   const mergedIdentity = {
-    ...parseIdentityFromFile(identityFile || ''),
-    ...((configData.identity && typeof configData.identity === 'object') ? configData.identity : {}),
+    ...existingIdentity,
+    ...parsedIdentity,
+    // Always prefer file-parsed avatar over whatever was in the existing config
+    ...(parsedIdentity.avatar ? { avatar: parsedIdentity.avatar } : {}),
   }
   const mergedTools = {
     ...parseToolsFromFile(toolsFile || ''),
