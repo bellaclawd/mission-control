@@ -347,8 +347,20 @@ function PlansView({ data }: { data: PlanSummaryData }) {
                 <XAxis dataKey="name" angle={-35} textAnchor="end" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(v) => formatNumber(v)} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v, n) => [formatNumber(Number(v)), n === 'input' ? 'Input tokens' : 'Output tokens']} />
-                <Bar dataKey="input" fill="#d97706" name="input" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="output" fill="#f59e0b" name="output" radius={[3, 3, 0, 0]} opacity={0.7} />
+                <Bar dataKey="input" name="input" radius={[3, 3, 0, 0]}>
+                  {data.allModels.map((m, i) => {
+                    const p = getProvider(m.model)
+                    const color = p === 'anthropic' ? '#f97316' : p === 'openai' ? '#10b981' : p === 'ollama' ? '#6366f1' : '#94a3b8'
+                    return <Cell key={i} fill={color} />
+                  })}
+                </Bar>
+                <Bar dataKey="output" name="output" radius={[3, 3, 0, 0]} opacity={0.5}>
+                  {data.allModels.map((m, i) => {
+                    const p = getProvider(m.model)
+                    const color = p === 'anthropic' ? '#f97316' : p === 'openai' ? '#10b981' : p === 'ollama' ? '#6366f1' : '#94a3b8'
+                    return <Cell key={i} fill={color} />
+                  })}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
