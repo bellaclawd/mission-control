@@ -178,6 +178,7 @@ export async function GET(request: NextRequest) {
     const ollamaModels: ModelRow[] = []
 
     for (const row of rows) {
+      if (!row.model || row.model === '<synthetic>' || row.model.startsWith('<')) continue
       const p = getProvider(row.model)
       if (p === 'anthropic') anthropicModels.push(row)
       else if (p === 'openai') openaiModels.push(row)
