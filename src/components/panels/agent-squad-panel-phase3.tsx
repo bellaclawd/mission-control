@@ -68,6 +68,9 @@ const statusIcons: Record<string, string> = {
   error: '!',
 }
 
+const DEFAULT_MISSION_STATEMENT = 'An autonomous organization of AI agents that does work for me and produces value 24/7'
+const DEFAULT_TAGLINE = "We wanted to see what happens when AI doesn't just answer questions — but actually runs a company. Research markets. Write content. Post on social media. Ship products. All without being told what to do."
+
 const defaultCardStyle = {
   edge: 'from-slate-400/60 to-slate-600/30',
   glow: 'from-slate-500/10 via-transparent to-transparent',
@@ -105,6 +108,13 @@ export function AgentSquadPanelPhase3() {
   const [syncing, setSyncing] = useState(false)
   const [syncToast, setSyncToast] = useState<string | null>(null)
   const [showHidden, setShowHidden] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [missionStatement, setMissionStatement] = useState(DEFAULT_MISSION_STATEMENT)
+  const [tagline, setTagline] = useState(DEFAULT_TAGLINE)
+  const [hierarchyOverrides, setHierarchyOverrides] = useState<Record<string, string>>({})
+  const [editMission, setEditMission] = useState('')
+  const [editTagline, setEditTagline] = useState('')
+  const [editHierarchyOverrides, setEditHierarchyOverrides] = useState<Record<string, string>>({})
 
   // Sync agents from gateway config or local disk
   const syncFromConfig = async (source?: 'local') => {
@@ -230,6 +240,18 @@ export function AgentSquadPanelPhase3() {
     fetchAgents()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHidden])
+
+  // Load persisted values from localStorage
+  useEffect(() => {
+    const savedMission = localStorage.getItem('mc_mission_statement')
+    const savedTagline = localStorage.getItem('mc_tagline')
+    const savedOverrides = localStorage.getItem('mc_hierarchy_overrides')
+    if (savedMission) setMissionStatement(savedMission)
+    if (savedTagline) setTagline(savedTagline)
+    if (savedOverrides) {
+      try { setHierarchyOverrides(JSON.parse(savedOverrides)) } catch {}
+    }
+  }, [])
 
   const toggleAgentHidden = async (agentId: number, hide: boolean) => {
     try {
@@ -373,15 +395,104 @@ export function AgentSquadPanelPhase3() {
           >
             {t('refresh')}
           </Button>
+          <Button
+            onClick={() => {
+              setEditMission(missionStatement)
+              setEditTagline(tagline)
+              setEditHierarchyOverrides({ ...hierarchyOverrides })
+              setEditMode(true)
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Edit
+          </Button>
         </div>
       </div>
+
+      {/* Edit Panel */}
+      {editMode && (
+        <div className="flex-shrink-0 border-b border-border bg-card/60 px-6 py-4 space-y-4">
+          <div className="max-w-2xl mx-auto space-y-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-foreground">Edit Team Page</span>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('mc_mission_statement')
+                  localStorage.removeItem('mc_tagline')
+                  localStorage.removeItem('mc_hierarchy_overrides')
+                  setMissionStatement(DEFAULT_MISSION_STATEMENT)
+                  setTagline(DEFAULT_TAGLINE)
+                  setHierarchyOverrides({})
+                  setEditMode(false)
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
+              >
+                Reset to default
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Mission Statement</label>
+              <input
+                type="text"
+                value={editMission}
+                onChange={e => setEditMission(e.target.value)}
+                className="w-full px-3 py-2 bg-surface-1 border border-border rounded text-sm text-foreground placeholder-muted-foreground focus:border-primary/50 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Tagline</label>
+              <textarea
+                value={editTagline}
+                onChange={e => setEditTagline(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 bg-surface-1 border border-border rounded text-sm text-foreground placeholder-muted-foreground focus:border-primary/50 focus:outline-none resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Hierarchy</label>
+              <p className="text-[11px] text-muted-foreground/70 mb-2">Drag an agent card onto another to make them report to that agent.</p>
+              <HierarchyEditor
+                agents={agents}
+                overrides={editHierarchyOverrides}
+                onChange={setEditHierarchyOverrides}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                onClick={() => {
+                  const newMission = editMission.trim() || DEFAULT_MISSION_STATEMENT
+                  const newTagline = editTagline.trim() || DEFAULT_TAGLINE
+                  localStorage.setItem('mc_mission_statement', newMission)
+                  localStorage.setItem('mc_tagline', newTagline)
+                  localStorage.setItem('mc_hierarchy_overrides', JSON.stringify(editHierarchyOverrides))
+                  setMissionStatement(newMission)
+                  setTagline(newTagline)
+                  setHierarchyOverrides(editHierarchyOverrides)
+                  setEditMode(false)
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setEditMode(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mission Statement Banner */}
       <div className="flex-shrink-0 px-6 pt-5 pb-2">
         <div className="max-w-2xl mx-auto text-center">
           <div className="inline-block border border-border/60 rounded-xl px-5 py-2.5 mb-4 bg-card/40 backdrop-blur-sm">
             <p className="text-sm italic text-foreground/80 font-medium">
-              &ldquo;An autonomous organization of AI agents that does work for me and produces value 24/7&rdquo;
+              &ldquo;{missionStatement}&rdquo;
             </p>
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Meet the Team</h1>
@@ -389,8 +500,7 @@ export function AgentSquadPanelPhase3() {
             {agents.length} AI agent{agents.length !== 1 ? 's' : ''}, each with a real role and a real personality.
           </p>
           <p className="text-xs text-muted-foreground/60 max-w-lg mx-auto leading-relaxed">
-            We wanted to see what happens when AI doesn&apos;t just answer questions — but actually runs a company.
-            Research markets. Write content. Post on social media. Ship products. All without being told what to do.
+            {tagline}
           </p>
         </div>
       </div>
@@ -433,6 +543,7 @@ export function AgentSquadPanelPhase3() {
         ) : (
           <OrgChart
             agents={agents}
+            hierarchyOverrides={hierarchyOverrides}
             onSelect={setSelectedAgent}
             onWake={(agent) => agent.session_key ? wakeAgent(agent.name, agent.session_key) : updateAgentStatus(agent.name, 'idle', 'Manually activated')}
             onSpawn={(agent) => { setSelectedAgent(agent); setShowQuickSpawnModal(true) }}
@@ -1153,11 +1264,12 @@ function isTransientAgent(name: string): boolean {
 // ─── OrgChart ─────────────────────────────────────────────────────────────────
 
 function OrgChart({
-  agents, onSelect, onWake, onSpawn, onToggleHidden,
+  agents, hierarchyOverrides, onSelect, onWake, onSpawn, onToggleHidden,
   hasRecentHeartbeat, formatLastSeen, t,
   statusCardStyles, statusBadgeStyles, defaultCardStyle,
 }: {
   agents: any[]
+  hierarchyOverrides: Record<string, string>
   onSelect: (a: any) => void
   onWake: (a: any) => void
   onSpawn: (a: any) => void
@@ -1169,8 +1281,15 @@ function OrgChart({
   statusBadgeStyles: Record<string, string>
   defaultCardStyle: any
 }) {
-  const byName: Record<string, any> = {}
-  agents.forEach(a => { byName[a.name] = a })
+  // Merge static hierarchy with overrides
+  const effectiveHierarchy: typeof HIERARCHY = { ...HIERARCHY }
+  for (const [name, reportsTo] of Object.entries(hierarchyOverrides)) {
+    if (effectiveHierarchy[name]) {
+      effectiveHierarchy[name] = { ...effectiveHierarchy[name], reportsTo }
+    } else {
+      effectiveHierarchy[name] = { title: 'Agent', reportsTo, emoji: '🤖' }
+    }
+  }
 
   const roots: any[] = []
   const childMap: Record<string, any[]> = {}
@@ -1178,7 +1297,7 @@ function OrgChart({
   // First pass: assign known children
   agents.forEach(agent => {
     if (isTransientAgent(agent.name)) return // skip transient subagents
-    const h = HIERARCHY[agent.name]
+    const h = effectiveHierarchy[agent.name]
     if (h && h.reportsTo) {
       if (!childMap[h.reportsTo]) childMap[h.reportsTo] = []
       childMap[h.reportsTo].push(agent)
@@ -1191,7 +1310,6 @@ function OrgChart({
   // Second pass: roots are agents with no parent (reportsTo === null) and not a child
   agents.forEach(agent => {
     if (isTransientAgent(agent.name)) return
-    const h = HIERARCHY[agent.name]
     const isChild = Object.values(childMap).flat().some((c: any) => c.id === agent.id)
     if (!isChild) roots.push(agent)
   })
@@ -1210,6 +1328,7 @@ function OrgChart({
           agent={root}
           children={childMap[root.name] || []}
           childMap={childMap}
+          effectiveHierarchy={effectiveHierarchy}
           isRoot
           onSelect={onSelect}
           onWake={onWake}
@@ -1228,7 +1347,7 @@ function OrgChart({
 }
 
 function OrgNode({
-  agent, children, childMap, isRoot = false,
+  agent, children, childMap, effectiveHierarchy, isRoot = false,
   onSelect, onWake, onSpawn, onToggleHidden,
   hasRecentHeartbeat, formatLastSeen, t,
   statusCardStyles, statusBadgeStyles, defaultCardStyle,
@@ -1236,6 +1355,7 @@ function OrgNode({
   agent: any
   children: any[]
   childMap: Record<string, any[]>
+  effectiveHierarchy: typeof HIERARCHY
   isRoot?: boolean
   onSelect: (a: any) => void
   onWake: (a: any) => void
@@ -1248,7 +1368,7 @@ function OrgNode({
   statusBadgeStyles: Record<string, string>
   defaultCardStyle: any
 }) {
-  const h = HIERARCHY[agent.name]
+  const h = effectiveHierarchy[agent.name]
   const title = h?.title || agent.role || 'Agent'
   const emoji = h?.emoji || '🤖'
   const cardStyle = statusCardStyles[agent.status] || defaultCardStyle
@@ -1328,6 +1448,7 @@ function OrgNode({
                   agent={child}
                   children={childMap[child.name] || []}
                   childMap={childMap}
+                  effectiveHierarchy={effectiveHierarchy}
                   onSelect={onSelect}
                   onWake={onWake}
                   onSpawn={onSpawn}
@@ -1344,6 +1465,96 @@ function OrgNode({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── HierarchyEditor ──────────────────────────────────────────────────────────
+
+function HierarchyEditor({
+  agents,
+  overrides,
+  onChange,
+}: {
+  agents: any[]
+  overrides: Record<string, string>
+  onChange: (overrides: Record<string, string>) => void
+}) {
+  const [draggedAgent, setDraggedAgent] = useState<string | null>(null)
+  const [dragOverAgent, setDragOverAgent] = useState<string | null>(null)
+
+  const visibleAgents = agents.filter(a => !isTransientAgent(a.name))
+
+  const getReportsTo = (agentName: string): string | null => {
+    if (overrides[agentName] !== undefined) return overrides[agentName] || null
+    return HIERARCHY[agentName]?.reportsTo || null
+  }
+
+  const getEmoji = (agentName: string) => HIERARCHY[agentName]?.emoji || '🤖'
+
+  const handleDragStart = (e: React.DragEvent, agentName: string) => {
+    setDraggedAgent(agentName)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, agentName: string) => {
+    e.preventDefault()
+    if (agentName !== draggedAgent) {
+      setDragOverAgent(agentName)
+      e.dataTransfer.dropEffect = 'move'
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDragOverAgent(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetName: string) => {
+    e.preventDefault()
+    if (draggedAgent && draggedAgent !== targetName) {
+      onChange({ ...overrides, [draggedAgent]: targetName })
+    }
+    setDraggedAgent(null)
+    setDragOverAgent(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedAgent(null)
+    setDragOverAgent(null)
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {visibleAgents.map(agent => {
+        const reportsTo = getReportsTo(agent.name)
+        const emoji = getEmoji(agent.name)
+        const isDragging = draggedAgent === agent.name
+        const isOver = dragOverAgent === agent.name
+        return (
+          <div
+            key={agent.name}
+            draggable
+            onDragStart={e => handleDragStart(e, agent.name)}
+            onDragOver={e => handleDragOver(e, agent.name)}
+            onDragLeave={handleDragLeave}
+            onDrop={e => handleDrop(e, agent.name)}
+            onDragEnd={handleDragEnd}
+            className={[
+              'flex flex-col items-center gap-1 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all select-none',
+              isDragging ? 'opacity-40' : 'opacity-100',
+              isOver
+                ? 'border-primary bg-primary/10 shadow-md scale-105'
+                : 'border-border bg-card/60 hover:border-border/80',
+            ].join(' ')}
+          >
+            <span className="text-xl">{emoji}</span>
+            <span className="text-xs font-medium text-foreground">{agent.name}</span>
+            <span className="text-[10px] text-muted-foreground">
+              {reportsTo ? `→ ${reportsTo}` : 'No manager'}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }

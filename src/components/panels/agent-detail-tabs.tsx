@@ -2798,6 +2798,7 @@ export function ModelsTab({ agent }: { agent: Agent }) {
   const providerLabels: Record<string, string> = {
     anthropic: '🔵 Anthropic',
     openai: '🟢 OpenAI',
+    'openai-codex': '🟢 OpenAI (Codex — Plus Plan)',
     ollama: '🟠 Ollama (Local)',
     groq: '⚡ Groq',
     google: '🔴 Google',
