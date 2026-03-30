@@ -445,12 +445,8 @@ async function getAvailableModels() {
         }
       })
 
-    // Add Ollama models that aren't already in the list
-    ollamaModels.forEach(model => {
-      if (!models.find(m => m.name === model.name)) {
-        models.push(model)
-      }
-    })
+    // Only add Ollama models that are explicitly in the MODEL_CATALOG
+    // (don't auto-add every local model — keeps the selector clean)
   } catch (error) {
     logger.error({ err: error }, 'Error checking Ollama models')
   }

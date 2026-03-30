@@ -7,16 +7,23 @@ export interface ModelConfig {
 }
 
 export const MODEL_CATALOG: ModelConfig[] = [
-  { alias: 'haiku', name: 'anthropic/claude-3-5-haiku-latest', provider: 'anthropic', description: 'Ultra-cheap, simple tasks', costPer1k: 0.25 },
-  { alias: 'sonnet', name: 'anthropic/claude-sonnet-4-20250514', provider: 'anthropic', description: 'Standard workhorse', costPer1k: 3.0 },
-  { alias: 'opus', name: 'anthropic/claude-opus-4-5', provider: 'anthropic', description: 'Premium quality', costPer1k: 15.0 },
-  { alias: 'gpt-5.4 (Codex)', name: 'openai-codex/gpt-5.4', provider: 'openai-codex', description: 'ChatGPT Plus subscription', costPer1k: 0.0 },
-  { alias: 'deepseek', name: 'ollama/deepseek-r1:14b', provider: 'ollama', description: 'Local reasoning (free)', costPer1k: 0.0 },
-  { alias: 'groq-fast', name: 'groq/llama-3.1-8b-instant', provider: 'groq', description: '840 tok/s, ultra fast', costPer1k: 0.05 },
-  { alias: 'groq', name: 'groq/llama-3.3-70b-versatile', provider: 'groq', description: 'Fast + quality balance', costPer1k: 0.59 },
-  { alias: 'kimi', name: 'moonshot/kimi-k2.5', provider: 'moonshot', description: 'Alternative provider', costPer1k: 1.0 },
-  { alias: 'venice-llama-3.3-70b', name: 'venice/llama-3.3-70b', provider: 'venice', description: 'Venice AI Llama 3.3 70B', costPer1k: 0.7 },
-  { alias: 'minimax', name: 'minimax/minimax-m2.1', provider: 'minimax', description: 'Cost-effective (1/10th price), strong coding', costPer1k: 0.3 },
+  // ── Anthropic ──────────────────────────────────────────────────────────────
+  { alias: 'claude-sonnet-4-6', name: 'anthropic/claude-sonnet-4-6', provider: 'anthropic', description: 'Main workhorse', costPer1k: 3.0 },
+  { alias: 'claude-opus-4-6', name: 'anthropic/claude-opus-4-6', provider: 'anthropic', description: 'Premium quality', costPer1k: 15.0 },
+  { alias: 'claude-haiku-4-6', name: 'anthropic/claude-haiku-4-6', provider: 'anthropic', description: 'Fast + cheap', costPer1k: 0.25 },
+  { alias: 'claude-haiku-4-5', name: 'anthropic/claude-haiku-4-5', provider: 'anthropic', description: 'Fast + cheap (older)', costPer1k: 0.25 },
+
+  // ── OpenAI Codex (Plus subscription) ──────────────────────────────────────
+  { alias: 'gpt-5.4', name: 'openai-codex/gpt-5.4', provider: 'openai-codex', description: 'ChatGPT Plus subscription', costPer1k: 0.0 },
+
+  // ── Ollama (local) ─────────────────────────────────────────────────────────
+  { alias: 'qwen2.5:3b', name: 'ollama/qwen2.5:3b', provider: 'ollama', description: 'Tiny local model (free)', costPer1k: 0.0 },
+  { alias: 'qwen2.5:7b', name: 'ollama/qwen2.5:7b', provider: 'ollama', description: 'Small local model (free)', costPer1k: 0.0 },
+  { alias: 'qwen2.5:14b', name: 'ollama/qwen2.5:14b', provider: 'ollama', description: 'Mid local model (free)', costPer1k: 0.0 },
+
+  // ── Google ─────────────────────────────────────────────────────────────────
+  { alias: 'gemini-2.5-pro', name: 'google/gemini-2.5-pro', provider: 'google', description: 'Gemini 2.5 Pro', costPer1k: 1.25 },
+  { alias: 'gemini-2.0-flash', name: 'google/gemini-2.0-flash', provider: 'google', description: 'Gemini Flash — fast', costPer1k: 0.1 },
 ]
 
 export function getModelByAlias(alias: string): ModelConfig | undefined {
