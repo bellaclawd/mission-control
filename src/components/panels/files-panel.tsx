@@ -233,6 +233,13 @@ export function FilesPanel() {
                 >
                   Raw ↗
                 </a>
+                <a
+                  href={`/api/files/preview?path=${encodeURIComponent(selected.path)}&download=1`}
+                  download={selected.name}
+                  className="text-xs px-2 py-1 rounded bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30 transition-colors"
+                >
+                  ⬇ Download
+                </a>
               </div>
               <div className="flex-1 overflow-auto p-4">
                 {previewLoading && <p className="text-sm text-muted-foreground">Loading preview...</p>}

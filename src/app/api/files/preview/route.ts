@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const path = searchParams.get('path') || ''
+  const forceDownload = searchParams.get('download') === '1'
 
   // Security: must be under an allowed workspace root or the generated media dir
   const allowedRoots = getAllowedRoots(auth.user.workspace_id ?? 1)
@@ -51,10 +52,11 @@ export async function GET(request: NextRequest) {
     // Binary files — serve as raw bytes with correct MIME type
     if (ext === 'pdf') {
       const buf = readFileSync(path)
+      const disposition = forceDownload ? 'attachment' : 'inline'
       return new NextResponse(buf, {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${path.split('/').pop()}"`,
+          'Content-Disposition': `${disposition}; filename="${path.split('/').pop()}"`,
         },
       })
     }
