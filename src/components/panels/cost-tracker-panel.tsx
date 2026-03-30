@@ -335,7 +335,7 @@ function PlansView({ data }: { data: PlanSummaryData }) {
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={data.allModels.map(m => ({
+                data={data.allModels.filter(m => (m.input + m.output) > 0).map(m => ({
                   name: getModelShortName(m.model),
                   input: m.input,
                   output: m.output,
@@ -348,14 +348,14 @@ function PlansView({ data }: { data: PlanSummaryData }) {
                 <YAxis tickFormatter={(v) => formatNumber(v)} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v, n) => [formatNumber(Number(v)), n === 'input' ? 'Input tokens' : 'Output tokens']} />
                 <Bar dataKey="input" name="input" radius={[3, 3, 0, 0]}>
-                  {data.allModels.map((m, i) => {
+                  {data.allModels.filter(m => (m.input + m.output) > 0).map((m, i) => {
                     const p = getProvider(m.model)
                     const color = p === 'anthropic' ? '#f97316' : p === 'openai' ? '#10b981' : p === 'ollama' ? '#6366f1' : '#94a3b8'
                     return <Cell key={i} fill={color} />
                   })}
                 </Bar>
                 <Bar dataKey="output" name="output" radius={[3, 3, 0, 0]} opacity={0.5}>
-                  {data.allModels.map((m, i) => {
+                  {data.allModels.filter(m => (m.input + m.output) > 0).map((m, i) => {
                     const p = getProvider(m.model)
                     const color = p === 'anthropic' ? '#f97316' : p === 'openai' ? '#10b981' : p === 'ollama' ? '#6366f1' : '#94a3b8'
                     return <Cell key={i} fill={color} />
