@@ -192,6 +192,20 @@ export async function GET(request: NextRequest) {
     // Parse JSONL agent activity
     const agentActivity = await parseAgentActivity()
 
+    // Roll JSONL agent activity into provider totals (OpenAI/Codex sessions live here, not in claude_sessions)
+    const jsonlOpenaiInput = agentActivity.filter(a => a.provider === 'openai').reduce((s, a) => s + a.inputTokens, 0)
+    const jsonlOpenaiOutput = agentActivity.filter(a => a.provider === 'openai').reduce((s, a) => s + a.outputTokens, 0)
+    const jsonlOpenaiModels: ModelRow[] = Object.values(
+      agentActivity.filter(a => a.provider === 'openai').reduce((acc, a) => {
+        const key = a.model
+        if (!acc[key]) acc[key] = { model: key, input: 0, output: 0, cost: 0, sessions: 0 }
+        acc[key].input += a.inputTokens
+        acc[key].output += a.outputTokens
+        acc[key].sessions += a.messageCount
+        return acc
+      }, {} as Record<string, ModelRow>)
+    )
+
     const response: PlanSummaryResponse = {
       providers: {
         anthropic: {
@@ -205,10 +219,10 @@ export async function GET(request: NextRequest) {
         openai: {
           label: 'OpenAI',
           plan: 'Plus',
-          totalInputTokens: sumTokens(openaiModels, 'input'),
-          totalOutputTokens: sumTokens(openaiModels, 'output'),
+          totalInputTokens: sumTokens(openaiModels, 'input') + jsonlOpenaiInput,
+          totalOutputTokens: sumTokens(openaiModels, 'output') + jsonlOpenaiOutput,
           estimatedCost: sumCost(openaiModels),
-          models: openaiModels,
+          models: [...openaiModels, ...jsonlOpenaiModels],
         },
         ollama: {
           label: 'Ollama',
