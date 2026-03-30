@@ -92,7 +92,7 @@ const OLLAMA_COLORS = ['#6366f1', '#4f46e5', '#4338ca']
 
 type Timeframe = 'day' | 'week' | 'month' | 'year' | 'all'
 const TIMEFRAME_LABELS: Record<Timeframe, string> = {
-  day: 'Today', week: '7 Days', month: '30 Days', year: 'This Year', all: 'All Time'
+  day: 'Today', week: 'Week', month: 'Month', year: 'This Year', all: 'All Time'
 }
 
 export function CostTrackerPanel() {
