@@ -48,6 +48,8 @@ interface PlanSummaryData {
     ollama: {
       label: string
       plan: string
+      totalInputTokens?: number
+      totalOutputTokens?: number
       messageCount: number
       models: ModelRow[]
     }
@@ -302,16 +304,22 @@ function PlansView({ data }: { data: PlanSummaryData }) {
             <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-medium">$0</span>
           </div>
           <div>
-            <div className="text-3xl font-bold text-foreground">{formatNumber(ollama.messageCount)}</div>
-            <div className="text-sm text-muted-foreground">sessions recorded</div>
+            <div className="text-3xl font-bold text-foreground">{formatNumber((ollama.totalInputTokens ?? 0) + (ollama.totalOutputTokens ?? 0))}</div>
+            <div className="text-sm text-muted-foreground">tokens processed locally</div>
+            {((ollama.totalInputTokens ?? 0) + (ollama.totalOutputTokens ?? 0)) > 0 && (
+              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                <span>↑ {formatNumber(ollama.totalInputTokens ?? 0)} in</span>
+                <span>↓ {formatNumber(ollama.totalOutputTokens ?? 0)} out</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {ollama.models.length > 0 ? ollama.models.map(m => (
               <span key={m.model} className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400">
-                {m.model}
+                {m.model} {m.input + m.output > 0 ? `· ${formatNumber(m.input + m.output)}` : ''}
               </span>
             )) : (
-              <span className="text-xs text-muted-foreground italic">qwen2.5:3b (local inference)</span>
+              <span className="text-xs text-muted-foreground italic">No local usage recorded yet</span>
             )}
           </div>
           <div className="text-xs text-green-500 font-medium pt-1 border-t border-border/50">

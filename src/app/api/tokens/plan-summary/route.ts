@@ -46,6 +46,8 @@ interface PlanSummaryResponse {
     ollama: {
       label: string
       plan: string
+      totalInputTokens: number
+      totalOutputTokens: number
       messageCount: number
       models: ModelRow[]
     }
@@ -193,10 +195,13 @@ export async function GET(request: NextRequest) {
     const agentActivity = await parseAgentActivity()
 
     // Roll JSONL agent activity into provider totals (OpenAI/Codex sessions live here, not in claude_sessions)
-    const jsonlOpenaiInput = agentActivity.filter(a => a.provider === 'openai').reduce((s, a) => s + a.inputTokens, 0)
-    const jsonlOpenaiOutput = agentActivity.filter(a => a.provider === 'openai').reduce((s, a) => s + a.outputTokens, 0)
+    // Only include gpt-5.4 (Codex subscription) — exclude gpt-4.1/gpt-4.1-mini (old API key, no longer used)
+    const CODEX_MODELS = ['gpt-5.4']
+    const codexActivity = agentActivity.filter(a => CODEX_MODELS.includes(a.model))
+    const jsonlOpenaiInput = codexActivity.reduce((s, a) => s + a.inputTokens, 0)
+    const jsonlOpenaiOutput = codexActivity.reduce((s, a) => s + a.outputTokens, 0)
     const jsonlOpenaiModels: ModelRow[] = Object.values(
-      agentActivity.filter(a => a.provider === 'openai').reduce((acc, a) => {
+      codexActivity.reduce((acc, a) => {
         const key = a.model
         if (!acc[key]) acc[key] = { model: key, input: 0, output: 0, cost: 0, sessions: 0 }
         acc[key].input += a.inputTokens
@@ -205,6 +210,20 @@ export async function GET(request: NextRequest) {
         return acc
       }, {} as Record<string, ModelRow>)
     )
+
+    // Ollama local models from JSONL
+    const jsonlOllamaModels: ModelRow[] = Object.values(
+      agentActivity.filter(a => a.provider === 'ollama').reduce((acc, a) => {
+        const key = a.model
+        if (!acc[key]) acc[key] = { model: key, input: 0, output: 0, cost: 0, sessions: 0 }
+        acc[key].input += a.inputTokens
+        acc[key].output += a.outputTokens
+        acc[key].sessions += a.messageCount
+        return acc
+      }, {} as Record<string, ModelRow>)
+    )
+    const jsonlOllamaInput = agentActivity.filter(a => a.provider === 'ollama').reduce((s, a) => s + a.inputTokens, 0)
+    const jsonlOllamaOutput = agentActivity.filter(a => a.provider === 'ollama').reduce((s, a) => s + a.outputTokens, 0)
 
     const response: PlanSummaryResponse = {
       providers: {
@@ -227,12 +246,14 @@ export async function GET(request: NextRequest) {
         ollama: {
           label: 'Ollama',
           plan: 'Free (Local)',
+          totalInputTokens: jsonlOllamaInput,
+          totalOutputTokens: jsonlOllamaOutput,
           messageCount: sumMessages(ollamaModels),
-          models: ollamaModels,
+          models: [...ollamaModels, ...jsonlOllamaModels],
         },
       },
       agentActivity,
-      allModels: [...rows, ...jsonlOpenaiModels],
+      allModels: [...rows, ...jsonlOpenaiModels, ...jsonlOllamaModels],
       lastUpdated: new Date().toISOString(),
     }
 
