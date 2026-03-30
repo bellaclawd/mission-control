@@ -111,6 +111,13 @@ const INTEGRATIONS: IntegrationDef[] = [
   // Dev Tools
   { id: 'github', name: 'GitHub', category: 'devtools', envVars: ['GITHUB_TOKEN'], vaultItem: 'openclaw-github-token', testable: true },
   { id: 'google_places', name: 'Google Places', category: 'devtools', envVars: ['GOOGLE_PLACES_API_KEY'], vaultItem: 'openclaw-google-places-api-key' },
+  { id: 'google_sheets', name: 'Google Sheets', category: 'productivity', envVars: ['GOOGLE_SHEETS_TOKEN_FILE'], recommendation: 'OAuth token for reading/writing Google Sheets. Run setup_sheets_auth.py to authorize.' },
+  { id: 'google_drive', name: 'Google Drive', category: 'productivity', envVars: ['GOOGLE_SHEETS_TOKEN_FILE'], recommendation: 'OAuth token (shared with Sheets). Enables file create/read/write on Drive.' },
+  { id: 'google_translate', name: 'Google Translate', category: 'productivity', envVars: ['GOOGLE_API_KEY'], recommendation: 'Translate text between languages. Uses existing Google API key.' },
+  { id: 'youtube', name: 'YouTube Data API', category: 'social', envVars: ['GOOGLE_API_KEY'], recommendation: 'Search videos, get channel stats, video metadata. Uses existing Google API key.' },
+  { id: 'pokemon_tcg', name: 'Pokémon TCG API', category: 'devtools', envVars: ['POKEMON_TCG_API_KEY'], vaultItem: 'openclaw-pokemon-tcg-api-key', testable: true, recommendation: 'Card data, set info, and TCGPlayer prices. Get a free key at dev.pokemontcg.io' },
+  { id: 'ebay', name: 'eBay Browse API', category: 'devtools', envVars: ['EBAY_APP_ID'], recommendation: 'Search listings, sold prices, market data. Application submitted — awaiting approval.' },
+  { id: 'alibaba', name: 'Alibaba Open API', category: 'devtools', envVars: ['ALIBABA_APP_KEY'], recommendation: 'Product sourcing, wholesale data. Application submitted — awaiting approval.' },
 
   // Productivity
   {
@@ -136,9 +143,16 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: 'voice_assistant', name: 'Voice Assistant (Jarvis)', category: 'infra', envVars: ['VOICE_ASSISTANT_URL'] },
   { id: 'pokemon_alerts', name: 'Pokémon Restock Monitor', category: 'infra', envVars: ['POKEMON_ALERTS_URL'] },
   { id: 'whatsapp_bridge', name: 'WhatsApp Bridge', category: 'messaging', envVars: ['WHATSAPP_BRIDGE_URL'] },
+  { id: 'agentmail', name: 'AgentMail', category: 'messaging', envVars: ['AGENTMAIL_API_KEY'], recommendation: 'AI-native email inbox for agents. Bella has an account configured.' },
   { id: 'hyperbrowser', name: 'Hyperbrowser', category: 'browser', envVars: ['HYPERBROWSER_API_KEY'], testable: true, recommendation: 'Cloud browser automation for AI agents. Get a key at hyperbrowser.ai' },
 
+  // Playwright Automations
+  { id: 'pw_dalle', name: 'DALL-E (ChatGPT Pro)', category: 'playwright', envVars: ['CHATGPT_IMAGEGEN_PROFILE'], recommendation: 'Generates images via ChatGPT web UI using Sev\'s Pro subscription. Script: /Users/claw/image-gen/dalle_image.py' },
+  { id: 'pw_gemini', name: 'Gemini / Nano Banana', category: 'playwright', envVars: ['GEMINI_IMAGEGEN_PROFILE'], recommendation: 'Generates images via Gemini web UI (Nano Banana account). Script: /Users/claw/image-gen/gemini_image.py' },
+  { id: 'pw_grok', name: 'Grok Video (Aurora)', category: 'playwright', envVars: ['GROK_VIDEO_PROFILE'], recommendation: 'Generates videos via Grok Imagine using Sev\'s Premium subscription. 100/day. Script: /Users/claw/image-gen/grok_video.py' },
+
   // Social / Creator Tools
+  { id: 'facebook', name: 'Facebook (Bella)', category: 'social', envVars: ['FACEBOOK_EMAIL'], recommendation: 'Bella\'s Facebook account (bellaclawd@gmail.com) — used for Gemini image gen and social tasks.' },
   { id: 'scrapecreators', name: 'ScrapeCreators', category: 'social', envVars: ['SCRAPECREATORS_API_KEY'], recommendation: 'Social media scraping API for creators.' },
   { id: 'bluesky', name: 'Bluesky (AT Protocol)', category: 'social', envVars: ['BSKY_APP_PASSWORD'], recommendation: 'Set BSKY_HANDLE and BSKY_APP_PASSWORD for Bluesky access.' },
   { id: 'twitter_session', name: 'X / Twitter Session (CT0)', category: 'social', envVars: ['CT0'], recommendation: 'Cookie-based Twitter session token.' },
@@ -153,8 +167,9 @@ const CATEGORIES: Record<string, { label: string; order: number }> = {
   devtools: { label: 'Dev Tools', order: 4 },
   security: { label: 'Security', order: 5 },
   infra: { label: 'Infrastructure', order: 6 },
-  productivity: { label: 'Productivity', order: 7 },
+  productivity: { label: 'Productivity & Google', order: 7 },
   browser: { label: 'Browser Automation', order: 8 },
+  playwright: { label: 'Playwright Automations', order: 10 },
 }
 
 // Vars that must never be written via this API
@@ -568,6 +583,103 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Google Sheets / Drive OAuth token file
+    if ((def.id === 'google_sheets' || def.id === 'google_drive') && !anySet) {
+      try {
+        const { existsSync: efs } = require('node:fs')
+        const { join: j } = require('node:path')
+        const tokenPath = j(os.homedir(), 'Library/Application Support/gogcli/sheets_token.json')
+        if (efs(tokenPath)) {
+          vars['GOOGLE_SHEETS_TOKEN_FILE'] = { redacted: 'OAuth token present (gogcli)', set: true }
+          allSet = true; anySet = true
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Google Translate & YouTube — use existing GOOGLE_API_KEY
+    if ((def.id === 'google_translate' || def.id === 'youtube') && !anySet) {
+      const key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY
+      if (key) {
+        vars['GOOGLE_API_KEY'] = { redacted: redactValue(key), set: true }
+        allSet = true; anySet = true
+      }
+    }
+
+    // Pokemon TCG API key
+    if (def.id === 'pokemon_tcg' && !anySet) {
+      const key = process.env.POKEMON_TCG_API_KEY
+      if (key) {
+        vars['POKEMON_TCG_API_KEY'] = { redacted: redactValue(key), set: true }
+        allSet = true; anySet = true
+      } else {
+        // Works without a key at lower rate limits
+        vars['POKEMON_TCG_API_KEY'] = { redacted: 'no key (rate-limited free tier)', set: true }
+        allSet = false; anySet = true
+      }
+    }
+
+    // Playwright automations — check if profile dirs exist
+    if (def.id === 'pw_dalle' && !anySet) {
+      const { existsSync: efs } = require('node:fs')
+      const { join: j } = require('node:path')
+      const profilePath = j(os.homedir(), '.config/chatgpt-imagegen-profile')
+      if (efs(profilePath)) {
+        vars['CHATGPT_IMAGEGEN_PROFILE'] = { redacted: 'Profile saved — auto-login active', set: true }
+        allSet = true; anySet = true
+      } else {
+        vars['CHATGPT_IMAGEGEN_PROFILE'] = { redacted: 'Profile not yet saved (run script once to log in)', set: false }
+        anySet = true
+      }
+    }
+    if (def.id === 'pw_gemini' && !anySet) {
+      const { existsSync: efs } = require('node:fs')
+      const { join: j } = require('node:path')
+      const profilePath = j(os.homedir(), '.config/gemini-imagegen-profile')
+      if (efs(profilePath)) {
+        vars['GEMINI_IMAGEGEN_PROFILE'] = { redacted: 'Profile saved — auto-login active', set: true }
+        allSet = true; anySet = true
+      } else {
+        vars['GEMINI_IMAGEGEN_PROFILE'] = { redacted: 'Profile not yet saved (run script once to log in)', set: false }
+        anySet = true
+      }
+    }
+    if (def.id === 'pw_grok' && !anySet) {
+      const { existsSync: efs } = require('node:fs')
+      const { join: j } = require('node:path')
+      const profilePath = j(os.homedir(), '.config/grok-video-profile')
+      if (efs(profilePath)) {
+        vars['GROK_VIDEO_PROFILE'] = { redacted: 'Profile saved — auto-login active', set: true }
+        allSet = true; anySet = true
+      } else {
+        vars['GROK_VIDEO_PROFILE'] = { redacted: 'Profile not yet saved (run script once to log in)', set: false }
+        anySet = true
+      }
+    }
+
+    // Facebook — Bella's account is always available
+    if (def.id === 'facebook' && !anySet) {
+      vars['FACEBOOK_EMAIL'] = { redacted: 'bellaclawd@gmail.com (Playwright)', set: true }
+      allSet = true; anySet = true
+    }
+
+    // AgentMail
+    if (def.id === 'agentmail' && !anySet) {
+      const key = process.env.AGENTMAIL_API_KEY
+      if (key) {
+        vars['AGENTMAIL_API_KEY'] = { redacted: redactValue(key), set: true }
+        allSet = true; anySet = true
+      }
+    }
+
+    // eBay and Alibaba — show pending status
+    if ((def.id === 'ebay' || def.id === 'alibaba') && !anySet) {
+      const key = def.id === 'ebay' ? process.env.EBAY_APP_ID : process.env.ALIBABA_APP_KEY
+      if (key) {
+        vars[def.id === 'ebay' ? 'EBAY_APP_ID' : 'ALIBABA_APP_KEY'] = { redacted: redactValue(key), set: true }
+        allSet = true; anySet = true
+      }
+    }
+
     // GitHub via gh CLI auth (even without GITHUB_TOKEN env var)
     if (def.id === 'github' && !anySet) {
       try {
@@ -910,6 +1022,20 @@ async function handleTest(
         })
         result = res.ok
           ? { ok: true, detail: 'API key valid' }
+          : { ok: false, detail: `HTTP ${res.status}` }
+        break
+      }
+
+      case 'pokemon_tcg': {
+        const key = getEffectiveEnvValue(envMap, 'POKEMON_TCG_API_KEY')
+        const headers: Record<string, string> = { 'User-Agent': 'MissionControl/1.0' }
+        if (key) headers['X-Api-Key'] = key
+        const res = await fetch('https://api.pokemontcg.io/v2/cards?q=name:Pikachu&pageSize=1', {
+          headers, signal: AbortSignal.timeout(5000),
+        })
+        const data = await res.json()
+        result = res.ok
+          ? { ok: true, detail: `Connected — ${data.totalCount || '?'} Pikachu cards indexed` }
           : { ok: false, detail: `HTTP ${res.status}` }
         break
       }

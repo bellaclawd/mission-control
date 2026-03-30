@@ -26,6 +26,7 @@ const navGroups: NavGroup[] = [
       { id: 'agents', label: 'Agents', icon: <AgentsIcon />, priority: true },
       { id: 'tasks', label: 'Tasks', icon: <TasksIcon />, priority: true },
       { id: 'chat', label: 'Chat', icon: <SessionsIcon />, priority: false },
+      { id: 'social-media', label: 'Social Media', icon: <SocialMediaIcon />, priority: false },
     ],
   },
   {
@@ -58,6 +59,13 @@ const navGroups: NavGroup[] = [
       { id: 'gateways', label: 'Gateways', icon: <GatewaysIcon />, priority: false },
       { id: 'gateway-config', label: 'Config', icon: <GatewayConfigIcon />, priority: false },
       { id: 'settings', label: 'Settings', icon: <SettingsIcon />, priority: false },
+    ],
+  },
+  {
+    id: 'personal',
+    label: 'PERSONAL',
+    items: [
+      { id: 'social-media', label: 'Social Media', icon: <SocialMediaIcon />, priority: false },
     ],
   },
 ]
@@ -495,6 +503,16 @@ function SettingsIcon() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="8" cy="8" r="2" />
       <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.4 1.4M11.55 11.55l1.4 1.4M3.05 12.95l1.4-1.4M11.55 4.45l1.4-1.4" />
+    </svg>
+  )
+}
+
+function SocialMediaIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="1" width="8" height="14" rx="1.5" />
+      <path d="M6 4h4M6 7h4M6 10h2" />
+      <circle cx="10.5" cy="10.5" r="0.5" fill="currentColor" stroke="none" />
     </svg>
   )
 }

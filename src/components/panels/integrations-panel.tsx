@@ -312,63 +312,64 @@ export function IntegrationsPanel() {
         </div>
       )}
 
-      {/* Category tabs */}
-      <div className="flex gap-1 border-b border-border pb-px overflow-x-auto">
-        {categories.map(cat => {
-          const catIntegrations = integrations.filter(i => i.category === cat.id)
-          const catConnected = catIntegrations.filter(i => i.status === 'connected').length
-          return (
-            <Button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              variant="ghost"
-              size="sm"
-              className={`rounded-t-md rounded-b-none relative whitespace-nowrap ${
-                activeCategory === cat.id
-                  ? 'bg-card text-foreground border border-border border-b-card -mb-px'
-                  : ''
-              }`}
-            >
-              {cat.label}
-              {catConnected > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center min-w-[16px] h-4 text-2xs rounded-full bg-green-500/15 text-green-400 px-1">
-                  {catConnected}
-                </span>
-              )}
-            </Button>
-          )
-        })}
-      </div>
+      {/* Sidebar + content layout */}
+      <div className="flex gap-6 min-h-0">
+        {/* Left sidebar — vertical category list */}
+        <div className="w-48 shrink-0 flex flex-col gap-0.5">
+          {categories.map(cat => {
+            const catIntegrations = integrations.filter(i => i.category === cat.id)
+            const catConnected = catIntegrations.filter(i => i.status === 'connected').length
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center justify-between w-full px-3 py-2 rounded-md text-left text-sm transition-colors ${
+                  activeCategory === cat.id
+                    ? 'bg-primary/10 text-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <span className="truncate">{cat.label}</span>
+                {catConnected > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-4 text-2xs rounded-full bg-green-500/15 text-green-400 px-1 shrink-0">
+                    {catConnected}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
 
-      {/* Integration cards */}
-      <div className="space-y-3">
-        {filteredIntegrations.map(integration => (
-          <IntegrationCard
-            key={integration.id}
-            integration={integration}
-            edits={edits}
-            revealed={revealed}
-            opAvailable={opAvailable}
-            testing={testing === integration.id}
-            pulling={pulling === integration.id}
-            onEdit={handleEdit}
-            onCancelEdit={cancelEdit}
-            onToggleReveal={toggleReveal}
-            onTest={() => handleTest(integration.id)}
-            onPull={() => handlePull(integration.id)}
-            onRemove={() => {
-              const setKeys = Object.entries(integration.envVars)
-                .filter(([, v]) => v.set)
-                .map(([k]) => k)
-              if (setKeys.length > 0) confirmAndRemove(integration.id, setKeys)
-            }}
-          />
-        ))}
-        {filteredIntegrations.length === 0 && (
-          <div className="text-sm text-muted-foreground text-center py-8">
-            {t('noIntegrationsInCategory')}
-          </div>
-        )}
+        {/* Right content — integration cards */}
+        <div className="flex-1 min-w-0 space-y-3">
+          {filteredIntegrations.map(integration => (
+            <IntegrationCard
+              key={integration.id}
+              integration={integration}
+              edits={edits}
+              revealed={revealed}
+              opAvailable={opAvailable}
+              testing={testing === integration.id}
+              pulling={pulling === integration.id}
+              onEdit={handleEdit}
+              onCancelEdit={cancelEdit}
+              onToggleReveal={toggleReveal}
+              onTest={() => handleTest(integration.id)}
+              onPull={() => handlePull(integration.id)}
+              onRemove={() => {
+                const setKeys = Object.entries(integration.envVars)
+                  .filter(([, v]) => v.set)
+                  .map(([k]) => k)
+                if (setKeys.length > 0) confirmAndRemove(integration.id, setKeys)
+              }}
+            />
+          ))}
+          {filteredIntegrations.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center py-8">
+              {t('noIntegrationsInCategory')}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Unsaved changes bar */}

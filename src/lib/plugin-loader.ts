@@ -8,7 +8,9 @@
  */
 
 import { initPokemonPlugin } from '@/plugins/pokemon'
+import { initSocialMediaPlugin } from '@/plugins/social-media'
 
 export function loadPlugins(): void {
   initPokemonPlugin()
+  initSocialMediaPlugin()
 }
