@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { readFileSync, existsSync } from 'node:fs'
+import os from 'node:os'
+import { join } from 'node:path'
 import { getDatabase } from '@/lib/db'
 import { getAgentWorkspaceCandidates } from '@/lib/agent-workspace'
 
@@ -32,9 +34,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const path = searchParams.get('path') || ''
 
-  // Security: must be under an allowed workspace root
+  // Security: must be under an allowed workspace root or the generated media dir
   const allowedRoots = getAllowedRoots(auth.user.workspace_id ?? 1)
-  if (!allowedRoots.some(root => path.startsWith(root))) {
+  const generatedDir = join(os.homedir(), '.openclaw', 'media', 'generated')
+  if (!allowedRoots.some(root => path.startsWith(root)) && !path.startsWith(generatedDir)) {
     return NextResponse.json({ error: 'Path not allowed' }, { status: 403 })
   }
 
@@ -43,6 +46,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const ext = path.split('.').pop()?.toLowerCase()
+
+    // Binary files — serve as raw bytes with correct MIME type
+    if (ext === 'pdf') {
+      const buf = readFileSync(path)
+      return new NextResponse(buf, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${path.split('/').pop()}"`,
+        },
+      })
+    }
+
+    // Image files
+    const imageMimes: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' }
+    if (ext && imageMimes[ext]) {
+      const buf = readFileSync(path)
+      return new NextResponse(buf, { headers: { 'Content-Type': imageMimes[ext] } })
+    }
+
+    // Text files
     const buf = readFileSync(path)
     const content = buf.slice(0, MAX_PREVIEW_BYTES).toString('utf-8')
     return NextResponse.json({ content, truncated: buf.length > MAX_PREVIEW_BYTES })

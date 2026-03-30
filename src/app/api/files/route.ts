@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative, extname, basename } from 'node:path'
+import os from 'node:os'
 import { getDatabase } from '@/lib/db'
 import { getAgentWorkspaceCandidates } from '@/lib/agent-workspace'
 
@@ -16,6 +17,7 @@ const SKIP_FILENAMES = new Set([
 const PREVIEW_EXTENSIONS = new Set([
   '.md', '.txt', '.json', '.js', '.ts', '.tsx', '.jsx', '.py',
   '.html', '.css', '.sh', '.yaml', '.yml', '.csv', '.log',
+  '.pdf',
 ])
 
 interface FileEntry {
@@ -102,6 +104,14 @@ export async function GET(request: NextRequest) {
     if (!existsSync(workspace)) continue
     if (agentFilter && agentFilter !== name) continue
     scanDir(workspace, name, workspace, files)
+  }
+
+  // Also scan ~/.openclaw/media/generated for generated files (PDFs, images, videos)
+  if (!agentFilter) {
+    const generatedDir = join(os.homedir(), '.openclaw', 'media', 'generated')
+    if (existsSync(generatedDir)) {
+      scanDir(generatedDir, 'generated', generatedDir, files)
+    }
   }
 
   // Sort by modified desc
