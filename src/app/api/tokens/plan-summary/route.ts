@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
         },
       },
       agentActivity,
-      allModels: [...rows, ...jsonlOpenaiModels, ...jsonlOllamaModels],
+      allModels: [...rows.filter(r => r.model && !r.model.startsWith('<')), ...jsonlOpenaiModels, ...jsonlOllamaModels],
       lastUpdated: new Date().toISOString(),
     }
 
