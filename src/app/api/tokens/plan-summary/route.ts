@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
         },
       },
       agentActivity,
-      allModels: rows,
+      allModels: [...rows, ...jsonlOpenaiModels],
       lastUpdated: new Date().toISOString(),
     }
 
