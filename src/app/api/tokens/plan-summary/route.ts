@@ -69,7 +69,7 @@ function getProvider(model: string): 'anthropic' | 'openai' | 'ollama' | 'unknow
 
 // ── JSONL parser ───────────────────────────────────────────────────────────
 
-async function parseAgentActivity(): Promise<AgentActivity[]> {
+async function parseAgentActivity(sinceMs: number | null = null): Promise<AgentActivity[]> {
   const agentsDir = path.join(os.homedir(), '.openclaw', 'agents')
   const activityMap = new Map<string, AgentActivity>()
 
@@ -97,11 +97,18 @@ async function parseAgentActivity(): Promise<AgentActivity[]> {
           try {
             const entry = JSON.parse(line)
             if (entry.type !== 'message') continue
+
+            // Apply timeframe filter using entry timestamp
+            if (sinceMs !== null) {
+              const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0
+              if (!ts || ts < sinceMs) continue
+            }
+
             const msg = entry.message
             if (!msg || msg.role !== 'assistant') continue
 
             const model: string = msg.model || ''
-            if (!model) continue
+            if (!model || model.startsWith('<')) continue
 
             const provider = getProvider(model)
             const key = `${agent}::${model}`
@@ -192,8 +199,20 @@ export async function GET(request: NextRequest) {
     const sumMessages = (models: ModelRow[]) =>
       models.reduce((acc, m) => acc + (m.sessions || 0), 0)
 
+    // Compute sinceMs for JSONL timeframe filtering
+    const sinceMs: number | null = (() => {
+      const now = Date.now()
+      switch (timeframe) {
+        case 'day':   return now - 86400000
+        case 'week':  return now - 7 * 86400000
+        case 'month': return now - 30 * 86400000
+        case 'year':  return now - 365 * 86400000
+        default:      return null
+      }
+    })()
+
     // Parse JSONL agent activity
-    const agentActivity = await parseAgentActivity()
+    const agentActivity = await parseAgentActivity(sinceMs)
 
     // Roll JSONL agent activity into provider totals (OpenAI/Codex sessions live here, not in claude_sessions)
     // Only include gpt-5.4 (Codex subscription) — exclude gpt-4.1/gpt-4.1-mini (old API key, no longer used)
